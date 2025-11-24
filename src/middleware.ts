@@ -15,29 +15,7 @@ const PROTECTED_ROUTES = [
 const PUBLIC_ROUTES = ['/login']
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value
-  const { pathname } = request.nextUrl
-
-  // Verificar si la ruta actual está protegida
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => 
-    pathname.startsWith(route)
-  )
-
-  // Verificar si la ruta actual es pública
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
-
-  // Si intenta acceder a ruta protegida sin token → redirigir a login
-  if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  // Si ya está autenticado y va a login → redirigir al dashboard
-  if (isPublicRoute && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
+  // Permitir que todas las rutas carguen y que el cliente maneje la auth
   return NextResponse.next()
 }
 
