@@ -60,7 +60,7 @@ export default function Login() {
               src="/logo_nexoScribe.svg"
               alt="NexoScribe Logo"
               fill
-              className="object-contain"
+              className="object-contain dark:brightness-0 dark:invert"
               priority
             />
           </div>
@@ -179,13 +179,13 @@ export default function Login() {
 
           <div className="space-y-2 text-center text-sm">
             <p>
-              <Link href="/forgot-password" className="text-primary font-semibold hover:underline">
+              <Link href="/forgot-password" className="text-primary font-semibold hover:underline dark:text-primary-foreground">
                 ¿Olvidaste tu contraseña?
               </Link>
             </p>
             <p>
               <span className="text-muted-foreground">¿No tienes una cuenta? </span>
-              <Link href="/register" className="text-primary font-semibold hover:underline">
+              <Link href="/register" className="text-primary font-semibold hover:underline dark:text-primary-foreground">
                 Regístrate gratis
               </Link>
             </p>

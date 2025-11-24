@@ -76,16 +76,16 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <Card className="w-full max-w-md shadow-elevated">
         <CardHeader className="text-center space-y-3">
-          <div className="mx-auto w-32 h-14 relative">
+          <div className="mx-auto w-32 h-14 relative mb-2">
             <Image
               src="/logo_nexoScribe.svg"
               alt="NexoScribe Logo"
               fill
-              className="object-contain"
+              className="object-contain dark:brightness-0 dark:invert"
               priority
             />
           </div>
-          <CardTitle className="text-2xl text-primary">Crear cuenta</CardTitle>
+          <CardTitle className="text-2xl text-primary dark:text-primary-foreground">Crear cuenta</CardTitle>
           <CardDescription>
             Únete a NexoScribe para organizar tus proyectos
           </CardDescription>
@@ -191,7 +191,7 @@ export default function Register() {
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">¿Ya tienes una cuenta? </span>
-            <Link href="/login" className="text-primary font-semibold hover:underline">
+            <Link href="/login" className="text-primary font-semibold hover:underline dark:text-primary-foreground">
               Inicia sesión
             </Link>
           </div>
