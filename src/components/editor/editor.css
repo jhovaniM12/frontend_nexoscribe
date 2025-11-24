@@ -1,0 +1,237 @@
+/* Estilos para el editor Lexical */
+
+/* Contenedor del editor */
+.editor-container {
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 2px);
+  background-color: hsl(var(--background));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-inner {
+  min-height: 400px;
+  position: relative;
+}
+
+.editor-input {
+  min-height: 400px;
+  padding: 1rem;
+  outline: none;
+  caret-color: hsl(var(--foreground));
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  line-height: 1.5;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.editor-input:focus {
+  outline: none;
+}
+
+.editor-placeholder {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  pointer-events: none;
+  user-select: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+/* Tipografía */
+.editor-paragraph {
+  margin: 0;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.editor-heading-h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.editor-heading-h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.editor-heading-h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 0;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.editor-heading-h4 {
+  font-size: 1.125rem;
+  font-weight: bold;
+  margin: 0;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.editor-heading-h5 {
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 0;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Listas */
+.editor-list-ol,
+.editor-list-ul {
+  padding-left: 30px;
+  margin: 0;
+  margin-bottom: 8px;
+}
+
+.editor-listitem {
+  margin: 8px 32px 8px 32px;
+}
+
+.editor-nested-listitem {
+  list-style-type: none;
+}
+
+/* Citas */
+.editor-quote {
+  margin: 0;
+  margin-left: 20px;
+  margin-bottom: 8px;
+  padding-left: 16px;
+  border-left: 4px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+
+/* Enlaces */
+.editor-link {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.editor-link:hover {
+  text-decoration: none;
+}
+
+/* Formato de texto */
+.editor-text-bold {
+  font-weight: bold;
+}
+
+.editor-text-italic {
+  font-style: italic;
+}
+
+.editor-text-underline {
+  text-decoration: underline;
+}
+
+.editor-text-strikethrough {
+  text-decoration: line-through;
+}
+
+.editor-text-underlineStrikethrough {
+  text-decoration: underline line-through;
+}
+
+.editor-text-code {
+  background-color: hsl(var(--muted));
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* Código */
+.editor-code {
+  background-color: hsl(var(--muted));
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  overflow-x: auto;
+}
+
+/* Imágenes */
+.editor-image {
+  max-width: 100%;
+  cursor: default;
+}
+
+/* Hashtags */
+.editor-text-hashtag {
+  background-color: hsl(var(--muted));
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: hsl(var(--primary));
+}
+
+.editor-text-overflowed {
+  display: inline-block;
+}
+
+/* Estilos para la barra de herramientas del editor */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background-color: hsl(var(--muted) / 0.5);
+  flex-wrap: wrap;
+}
+
+.toolbar-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  color: hsl(var(--foreground));
+  transition: all 0.2s;
+}
+
+.toolbar-item:hover:not(:disabled) {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.toolbar-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-item.active {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.toolbar-item.spaced {
+  margin-right: 0.25rem;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background-color: hsl(var(--border));
+  margin: 0 0.25rem;
+}
+
