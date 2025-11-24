@@ -16,12 +16,18 @@ import Link from "next/link"
 
 export default function Login() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user, loading: authLoading } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  // Redirigir si ya está autenticado
+  if (!authLoading && user) {
+    router.push('/dashboard')
+    return null // O un spinner
+  }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
