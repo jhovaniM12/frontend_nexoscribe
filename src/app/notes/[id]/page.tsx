@@ -18,13 +18,12 @@ import {
   Clock, 
   Tag as TagIcon,
   Save,
-  Loader2,
-  Folder
+  Loader2
 } from "lucide-react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { notesApi, foldersApi, type Note, type Folder } from "@/lib/api"
+import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 
 // Componente Skeleton para la página de detalle
@@ -76,7 +75,7 @@ export default function NoteDetail() {
   const [content, setContent] = useState("")
   const [tags, setTags] = useState("")
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
-  const [folders, setFolders] = useState<Folder[]>([])
+  const [folders, setFolders] = useState<FolderType[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -119,10 +118,13 @@ export default function NoteDetail() {
         setTags(noteData.tags?.join(", ") || "")
         // Establecer el folderId, manejando si viene como objeto o string
         if (noteData.folderId) {
-          const folderId = typeof noteData.folderId === 'object' 
-            ? noteData.folderId._id || noteData.folderId 
-            : noteData.folderId
-          setSelectedFolderId(folderId)
+          let folderIdValue: string | null = null
+          if (typeof noteData.folderId === 'object' && noteData.folderId !== null && '_id' in noteData.folderId) {
+            folderIdValue = noteData.folderId._id
+          } else if (typeof noteData.folderId === 'string') {
+            folderIdValue = noteData.folderId
+          }
+          setSelectedFolderId(folderIdValue)
         } else {
           setSelectedFolderId(null)
         }

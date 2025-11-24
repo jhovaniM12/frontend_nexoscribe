@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Grid3x3, List } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
-import { notesApi, foldersApi, type Note, type Folder } from "@/lib/api"
+import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 import { filterNotesBySearch } from "@/utils/noteUtils"
 import { FoldersSidebar } from "@/components/notes/FoldersSidebar"
@@ -25,13 +25,13 @@ const FOLDER_COLORS = [
   { name: 'Indigo', value: '#6366F1' },
 ]
 
-export default function Notes() {
+function NotesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedFolderId = searchParams.get('folder')
   
   const [notes, setNotes] = useState<Note[]>([])
-  const [folders, setFolders] = useState<Folder[]>([])
+  const [folders, setFolders] = useState<FolderType[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingFolders, setLoadingFolders] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -39,7 +39,7 @@ export default function Notes() {
   // Estados para el diálogo de carpetas
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [folderDialogMode, setFolderDialogMode] = useState<'create' | 'edit'>('create')
-  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null)
+  const [selectedFolder, setSelectedFolder] = useState<FolderType | null>(null)
   const [folderName, setFolderName] = useState("")
   const [folderColor, setFolderColor] = useState(FOLDER_COLORS[0].value)
   const [isSubmittingFolder, setIsSubmittingFolder] = useState(false)
@@ -121,7 +121,7 @@ export default function Notes() {
     setFolderDialogOpen(true)
   }
 
-  const handleEditFolder = (folder: Folder) => {
+  const handleEditFolder = (folder: FolderType) => {
     setFolderDialogMode('edit')
     setSelectedFolder(folder)
     setFolderName(folder.name)
@@ -281,4 +281,24 @@ export default function Notes() {
       />
     </Layout>
   )
+}
+
+export default function Notes() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <Layout>
+        <div className="space-y-4 sm:space-y-6">
+          <h1 className="text-3xl font-bold">Notas</h1>
+        </div>
+      </Layout>
+    )
+  }
+
+  return <NotesContent />
 }

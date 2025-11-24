@@ -75,7 +75,7 @@ export default function ToolbarPlugin() {
       const nodes = selection.getNodes();
       let foundColor = 'transparent';
       for (const node of nodes) {
-        if (node.getStyle) {
+        if ('getStyle' in node && typeof node.getStyle === 'function') {
           const style = node.getStyle();
           const bgColorMatch = style.match(/background-color:\s*([^;]+)/);
           if (bgColorMatch) {

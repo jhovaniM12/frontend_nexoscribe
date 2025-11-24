@@ -34,7 +34,7 @@ interface AdminOrganization {
   _id: string
   name: string
   type: string
-  members: any[]
+  members: Array<{ userId: string; role: string }>
   createdBy: {
     _id: string
     name: string
@@ -62,7 +62,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     // Verificar rol antes de cargar
-    if (user && user.role !== 'admin' && (user as any).systemRole !== 'superadmin') {
+    if (user && user.role !== 'admin' && user.systemRole !== 'superadmin') {
       toast.error("Acceso denegado")
       router.push('/dashboard')
       return

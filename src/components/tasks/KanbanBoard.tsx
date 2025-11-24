@@ -52,6 +52,7 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
     })
 
     setColumns(newColumns)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks])
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {

@@ -210,7 +210,7 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium leading-none truncate group-hover:text-primary transition-colors">
                           {task.title}
                         </h4>
-                        {/* @ts-ignore - projectId puede venir populado como objeto */}
+                        {/* @ts-expect-error - projectId puede venir populado como objeto */}
                         <p className="text-xs text-muted-foreground truncate">{task.projectId?.name || 'Sin proyecto'}</p>
                         
                         {task.dueDate && (

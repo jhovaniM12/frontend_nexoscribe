@@ -28,7 +28,7 @@ import { useOrganization } from "@/context/organization-context"
 import { KanbanBoard } from "@/components/tasks/KanbanBoard"
 import { useSearchParams, useRouter } from "next/navigation"
 
-export default function TasksPage() {
+function TasksPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectIdParam = searchParams.get('project')
@@ -114,7 +114,7 @@ export default function TasksPage() {
     // Optimistic update
     const oldTasks = [...tasks]
     const updatedTasks = tasks.map(t => 
-      t._id === taskId ? { ...t, status: newStatus as any } : t
+      t._id === taskId ? { ...t, status: newStatus as 'todo' | 'in_progress' | 'done' } : t
     )
     setTasks(updatedTasks)
 
@@ -150,8 +150,8 @@ export default function TasksPage() {
       const payload = {
         title,
         description: desc,
-        status: status as any,
-        priority: priority as any,
+        status: status as 'todo' | 'in_progress' | 'done',
+        priority: priority as 'low' | 'medium' | 'high',
         projectId: taskProject === 'none' ? undefined : taskProject,
         dueDate: dueDate || undefined
       }
@@ -300,3 +300,22 @@ export default function TasksPage() {
   )
 }
 
+export default function TasksPage() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <Layout>
+        <div className="space-y-4 sm:space-y-6">
+          <h1 className="text-3xl font-bold">Tareas</h1>
+        </div>
+      </Layout>
+    )
+  }
+
+  return <TasksPageContent />
+}

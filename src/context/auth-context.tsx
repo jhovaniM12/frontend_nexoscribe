@@ -9,6 +9,7 @@ interface User {
   name: string
   email: string
   role: string
+  systemRole?: string
   isActive: boolean
   avatar?: string
 }

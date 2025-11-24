@@ -11,14 +11,14 @@ export const api = {
     // Obtener la organización actual del localStorage
     const currentOrgId = typeof window !== 'undefined' ? localStorage.getItem('currentOrgId') : null;
 
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
     // Inyectar x-org-id si existe
     if (currentOrgId) {
-      (headers as any)['x-org-id'] = currentOrgId;
+      headers['x-org-id'] = currentOrgId;
     }
 
     const response = await fetch(url, {
@@ -158,7 +158,7 @@ export interface Note {
   title: string
   content: string
   tags: string[]
-  folderId?: string | null
+  folderId?: string | { _id: string; name: string } | null
   userId: string
   createdAt: string
   updatedAt: string

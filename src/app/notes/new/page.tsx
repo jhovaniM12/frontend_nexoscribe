@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import LexicalEditorComponent from "@/components/editor/LexicalEditor"
-import { ArrowLeft, Save, Loader2, Folder } from "lucide-react"
+import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { notesApi, foldersApi, type Folder } from "@/lib/api"
+import { notesApi, foldersApi, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 
-export default function NewNote() {
+function NewNoteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const folderIdFromUrl = searchParams.get('folder')
@@ -24,7 +24,7 @@ export default function NewNote() {
   const [content, setContent] = useState("")
   const [tags, setTags] = useState("")
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(folderIdFromUrl || null)
-  const [folders, setFolders] = useState<Folder[]>([])
+  const [folders, setFolders] = useState<FolderType[]>([])
 
   // Cargar carpetas
   useEffect(() => {
@@ -218,4 +218,26 @@ export default function NewNote() {
       </div>
     </Layout>
   )
+}
+
+export default function NewNote() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <Layout>
+        <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <h1 className="text-3xl font-bold">Nueva Nota</h1>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  return <NewNoteContent />
 }

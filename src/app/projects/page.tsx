@@ -88,7 +88,7 @@ export default function ProjectsPage() {
         const response = await projectsApi.create({
           name: projectName,
           description: projectDesc,
-          status: projectStatus as any
+          status: projectStatus as 'active' | 'archived' | 'completed'
         })
         setProjects([response.project, ...projects])
         toast.success("Proyecto creado")
@@ -97,7 +97,7 @@ export default function ProjectsPage() {
         const response = await projectsApi.update(selectedProject._id, {
           name: projectName,
           description: projectDesc,
-          status: projectStatus as any
+          status: projectStatus as 'active' | 'archived' | 'completed'
         })
         setProjects(projects.map(p => p._id === selectedProject._id ? response.project : p))
         toast.success("Proyecto actualizado")

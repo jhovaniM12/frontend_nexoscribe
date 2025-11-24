@@ -27,8 +27,10 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   const { user, logout } = useAuth()
   const router = useRouter()
 
+  // Necesario para evitar problemas de hidratación con el tema
   useEffect(() => {
     setMounted(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Obtener iniciales del nombre del usuario
