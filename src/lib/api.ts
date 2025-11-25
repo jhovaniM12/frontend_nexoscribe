@@ -65,7 +65,54 @@ export const api = {
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' })
   },
+
+  // Método específico para subir archivos (FormData)
+  async upload<T>(endpoint: string, file: File, fieldName: string = 'file', additionalData?: Record<string, string>): Promise<T> {
+    const formData = new FormData();
+    formData.append(fieldName, file);
+    
+    if (additionalData) {
+      Object.entries(additionalData).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+
+    // Usamos fetch directamente para evitar que request() sobrescriba el Content-Type
+    const url = `${API_URL}${endpoint}`
+    const currentOrgId = typeof window !== 'undefined' ? localStorage.getItem('currentOrgId') : null;
+    
+    const headers: Record<string, string> = {};
+    // Si usamos la función base, necesitamos una forma de NO poner Content-Type: application/json
+    // Por ahora, replico la logica básica:
+    
+    if (typeof window !== 'undefined') {
+       // Obtener token si es necesario (si lo manejas en headers, pero veo que usas cookies)
+    }
+    
+    if (currentOrgId) {
+      headers['x-org-id'] = currentOrgId;
+    }
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+        headers, // NO incluir Content-Type, el navegador lo pone con el boundary correcto
+    });
+
+    if (!response.ok) {
+        let errorMessage = `Error: ${response.statusText}`
+        try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorData.message || errorMessage
+        } catch {}
+        throw new Error(errorMessage)
+    }
+
+    return response.json();
+  },
 }
+
 
 // Tipos de Organizaciones
 export interface Organization {
@@ -312,4 +359,13 @@ export const tasksApi = {
   
   delete: (id: string) => 
     api.delete<{ message: string }>(`/api/task/delete-task/${id}`),
+}
+
+// API de Archivos
+export const uploadApi = {
+  uploadAvatar: (file: File) => 
+    api.upload<{ message: string; url: string }>('/api/upload/avatar', file),
+  
+  uploadFile: (file: File, folder: string = 'general') => 
+    api.upload<{ message: string; url: string; filename: string; mimetype: string }>('/api/upload/file', file, 'file', { folder }),
 }
