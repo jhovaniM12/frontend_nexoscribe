@@ -20,10 +20,10 @@ export function NoteCard({ note, onDelete }: NoteCardProps) {
       <CardHeader>
         <div className="flex items-start justify-between">
           <Link href={`/notes/${note._id}`} className="space-y-1 flex-1">
-            <CardTitle className="hover:text-primary transition-colors line-clamp-2 cursor-pointer">
+            <CardTitle className="hover:text-primary transition-colors line-clamp-2 cursor-pointer" title={note.title}>
               {note.title}
             </CardTitle>
-            <CardDescription className="line-clamp-2">
+            <CardDescription className="line-clamp-3 text-sm">
               {stripHtml(note.content)}
             </CardDescription>
           </Link>
