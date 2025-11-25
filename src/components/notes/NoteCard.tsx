@@ -18,12 +18,12 @@ export function NoteCard({ note, onDelete }: NoteCardProps) {
   return (
     <Card className="shadow-card hover:shadow-elevated transition-smooth">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <Link href={`/notes/${note._id}`} className="space-y-1 flex-1">
-            <CardTitle className="hover:text-primary transition-colors line-clamp-2 cursor-pointer" title={note.title}>
+        <div className="flex items-start justify-between gap-2">
+          <Link href={`/notes/${note._id}`} className="space-y-1 flex-1 min-w-0">
+            <CardTitle className="hover:text-primary transition-colors line-clamp-2 cursor-pointer break-words" title={note.title}>
               {note.title}
             </CardTitle>
-            <CardDescription className="line-clamp-3 text-sm">
+            <CardDescription className="line-clamp-3 text-sm break-words overflow-hidden">
               {stripHtml(note.content)}
             </CardDescription>
           </Link>
