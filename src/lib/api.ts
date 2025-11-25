@@ -327,6 +327,8 @@ export interface Task {
   priority: 'low' | 'medium' | 'high'
   dueDate?: string
   position: number
+  isOverdue?: boolean
+  overdueAt?: string
   createdAt: string
   updatedAt: string
 }

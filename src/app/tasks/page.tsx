@@ -26,6 +26,7 @@ import { toast } from "sonner"
 import { tasksApi, projectsApi, type Task, type Project } from "@/lib/api"
 import { useOrganization } from "@/context/organization-context"
 import { KanbanBoard } from "@/components/tasks/KanbanBoard"
+import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet"
 import { useSearchParams, useRouter } from "next/navigation"
 
 function TasksPageContent() {
@@ -134,35 +135,21 @@ function TasksPageContent() {
       await tasksApi.delete(task._id)
       setTasks(tasks.filter(t => t._id !== task._id))
       toast.success("Tarea eliminada")
+      setDialogOpen(false)
     } catch (error) {
       toast.error("Error al eliminar")
     }
   }
 
-  const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast.error("El título es requerido")
-      return
-    }
-
-    setIsSubmitting(true)
+  const handleSaveTask = async (data: Partial<Task>) => {
     try {
-      const payload = {
-        title,
-        description: desc,
-        status: status as 'todo' | 'in_progress' | 'done',
-        priority: priority as 'low' | 'medium' | 'high',
-        projectId: taskProject === 'none' ? undefined : taskProject,
-        dueDate: dueDate || undefined
-      }
-
       if (dialogMode === 'create') {
-        const res = await tasksApi.create(payload)
+        const res = await tasksApi.create(data as any)
         setTasks([...tasks, res.task])
         toast.success("Tarea creada")
       } else {
         if (!selectedTask) return
-        const res = await tasksApi.update(selectedTask._id, payload)
+        const res = await tasksApi.update(selectedTask._id, data)
         setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
         toast.success("Tarea actualizada")
       }
@@ -170,8 +157,27 @@ function TasksPageContent() {
     } catch (error) {
       console.error(error)
       toast.error("Error al guardar")
-    } finally {
-      setIsSubmitting(false)
+      throw error
+    }
+  }
+
+  const handleStatusToggle = async (task: Task) => {
+    const newStatus = task.status === 'done' ? 'todo' : 'done'
+    
+    // Optimistic update
+    const oldTasks = [...tasks]
+    const updatedTasks = tasks.map(t => 
+      t._id === task._id ? { ...t, status: newStatus as 'todo' | 'in_progress' | 'done' } : t
+    )
+    setTasks(updatedTasks)
+
+    try {
+      await tasksApi.update(task._id, { status: newStatus })
+      toast.success(newStatus === 'done' ? "Tarea completada" : "Tarea reabierta")
+    } catch (error) {
+      // Revertir si falla
+      setTasks(oldTasks)
+      toast.error("Error al actualizar la tarea")
     }
   }
 
@@ -219,82 +225,19 @@ function TasksPageContent() {
             onEditTask={handleEditTask}
             onDeleteTask={handleDeleteTask}
             onNewTask={handleNewTask}
+            onStatusToggle={handleStatusToggle}
           />
         </div>
 
-        {/* Dialog */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>{dialogMode === 'create' ? 'Nueva Tarea' : 'Editar Tarea'}</DialogTitle>
-              <DialogDescription>Detalles de la tarea</DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Título</Label>
-                <Input id="title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Hacer compras..." />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="desc">Descripción</Label>
-                <Textarea id="desc" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Detalles adicionales..." />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Estado</Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todo">Por hacer</SelectItem>
-                      <SelectItem value="in_progress">En progreso</SelectItem>
-                      <SelectItem value="done">Completado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Prioridad</Label>
-                  <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Baja</SelectItem>
-                      <SelectItem value="medium">Media</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Proyecto</Label>
-                <Select value={taskProject} onValueChange={setTaskProject}>
-                  <SelectTrigger><SelectValue placeholder="Sin proyecto" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin proyecto</SelectItem>
-                    {projects.map(p => (
-                      <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="date">Fecha de vencimiento</Label>
-                <Input id="date" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* New Task Detail Sheet */}
+        <TaskDetailSheet
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          task={selectedTask}
+          projects={projects}
+          onSave={handleSaveTask}
+          onDelete={dialogMode === 'edit' && selectedTask ? handleDeleteTask : undefined}
+        />
       </div>
     </Layout>
   )

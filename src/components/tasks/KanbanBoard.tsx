@@ -14,6 +14,7 @@ interface KanbanBoardProps {
   onEditTask: (task: Task) => void
   onDeleteTask: (task: Task) => void
   onNewTask: (status: string) => void
+  onStatusToggle?: (task: Task) => void
 }
 
 const COLUMNS = [
@@ -22,7 +23,7 @@ const COLUMNS = [
   { id: 'done', title: 'Completado', color: 'bg-green-500/10 text-green-600' }
 ]
 
-export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTask, onNewTask }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTask, onNewTask, onStatusToggle }: KanbanBoardProps) {
   const [columns, setColumns] = useState<{ [key: string]: Task[] }>({
     todo: [],
     in_progress: [],
@@ -126,6 +127,7 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
                   onEdit={onEditTask} 
                   onDelete={onDeleteTask}
                   onDragStart={handleDragStart}
+                  onStatusToggle={onStatusToggle}
                 />
               ))}
               {columns[col.id]?.length === 0 && (

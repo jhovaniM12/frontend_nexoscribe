@@ -231,10 +231,6 @@ export default function ToolbarPlugin() {
             style={currentHighlight !== 'transparent' ? {
               backgroundColor: currentHighlight,
             } : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
           >
             <Highlighter className="h-4 w-4" />
           </button>
