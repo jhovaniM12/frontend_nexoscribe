@@ -143,13 +143,28 @@ function TasksPageContent() {
 
   const handleSaveTask = async (data: Partial<Task>) => {
     try {
+      // Normalizar projectId: si es un objeto, extraer solo el _id
+      const normalizedData: Partial<{
+        title: string
+        description?: string
+        projectId?: string
+        status?: 'todo' | 'in_progress' | 'done'
+        priority?: 'low' | 'medium' | 'high'
+        dueDate?: string
+      }> = {
+        ...data,
+        projectId: data.projectId 
+          ? (typeof data.projectId === 'object' ? data.projectId._id : data.projectId)
+          : undefined
+      }
+
       if (dialogMode === 'create') {
-        const res = await tasksApi.create(data as any)
+        const res = await tasksApi.create(normalizedData as any)
         setTasks([...tasks, res.task])
         toast.success("Tarea creada")
       } else {
         if (!selectedTask) return
-        const res = await tasksApi.update(selectedTask._id, data)
+        const res = await tasksApi.update(selectedTask._id, normalizedData)
         setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
         toast.success("Tarea actualizada")
       }
