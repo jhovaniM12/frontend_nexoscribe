@@ -7,8 +7,6 @@ import {
   SheetHeader, 
   SheetTitle,
   SheetDescription,
-  SheetFooter,
-  SheetClose
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,7 +17,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   Calendar as CalendarIcon, 
   CheckSquare, 
-  Clock, 
   Flag, 
   FolderKanban, 
   Link as LinkIcon, 
@@ -29,13 +26,20 @@ import {
   MessageSquare,
   Paperclip,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  Download,
+  Clock
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { type Task, type Project } from "@/lib/api"
+import { type Task, type Project, type Attachment, api } from "@/lib/api"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 interface TaskDetailSheetProps {
   open: boolean
@@ -61,10 +65,17 @@ export function TaskDetailSheet({
   const [priority, setPriority] = useState("medium")
   const [projectId, setProjectId] = useState<string>("none")
   const [dueDate, setDueDate] = useState("")
+  const [hours, setHours] = useState("")
+  const [minutes, setMinutes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Attachments state
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isUploading, setIsUploading] = useState(false)
 
-  // Reset form when task changes
-  useEffect(() => {
+    
+    // Reset form when task changes
+    useEffect(() => {
     if (open) {
       if (task) {
         setTitle(task.title)
@@ -74,6 +85,14 @@ export function TaskDetailSheet({
         const pId = task.projectId ? (typeof task.projectId === 'object' ? task.projectId._id : task.projectId) : "none"
         setProjectId(pId)
         setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "")
+        if (task.estimatedTime) {
+          setHours(Math.floor(task.estimatedTime / 60).toString())
+          setMinutes((task.estimatedTime % 60).toString())
+        } else {
+          setHours("")
+          setMinutes("")
+        }
+        setAttachments(task.attachments || [])
       } else {
         // New Task Defaults
         setTitle("")
@@ -82,6 +101,9 @@ export function TaskDetailSheet({
         setPriority("medium")
         setProjectId("none")
         setDueDate("")
+        setHours("")
+        setMinutes("")
+        setAttachments([])
       }
     }
   }, [open, task])
@@ -91,19 +113,86 @@ export function TaskDetailSheet({
     
     setIsSubmitting(true)
     try {
+      // Normalizar la fecha para evitar problemas de zona horaria
+      let normalizedDueDate: string | undefined = undefined
+      if (dueDate) {
+        // Crear fecha en hora local (medianoche) y convertir a ISO
+        const [year, month, day] = dueDate.split('-').map(Number)
+        const localDate = new Date(year, month - 1, day, 12, 0, 0) // Mediodía para evitar cambios de día
+        normalizedDueDate = localDate.toISOString()
+      }
+
+      const totalMinutes = (parseInt(hours || "0") * 60) + parseInt(minutes || "0")
+
       await onSave({
         title,
         description,
         status: status as any,
         priority: priority as any,
         projectId: projectId === "none" ? undefined : projectId,
-        dueDate: dueDate || undefined
+        dueDate: normalizedDueDate,
+        estimatedTime: totalMinutes > 0 ? totalMinutes : undefined,
+        attachments: attachments
       })
       onOpenChange(false)
     } catch (error) {
       console.error(error)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      // Subir archivo a Google Cloud Storage
+      const response = await api.upload<{ url: string }>('/api/upload/file', file)
+      
+      const newAttachment: Attachment = {
+        name: file.name,
+        url: response.url,
+        type: file.type,
+        size: file.size,
+        uploadedAt: new Date().toISOString()
+      }
+
+      // Actualizar estado local
+      const updatedAttachments = [...attachments, newAttachment]
+      setAttachments(updatedAttachments)
+
+      // Guardar cambios automáticamente si la tarea ya existe
+      if (task?._id) {
+        await onSave({ 
+           ...task, 
+           projectId: projectId === "none" ? undefined : projectId, // Mantener el projectId actual normalizado
+           attachments: updatedAttachments 
+        })
+      }
+      
+      toast.success("Archivo adjunto correctamente")
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al subir el archivo")
+    } finally {
+      setIsUploading(false)
+      // Limpiar input
+      e.target.value = '' 
+    }
+  }
+
+  const removeAttachment = async (index: number) => {
+    const updatedAttachments = attachments.filter((_, i) => i !== index)
+    setAttachments(updatedAttachments)
+    
+    if (task?._id) {
+       await onSave({ 
+          ...task, 
+          projectId: projectId === "none" ? undefined : projectId,
+          attachments: updatedAttachments 
+       })
     }
   }
 
@@ -216,22 +305,83 @@ export function TaskDetailSheet({
                 </div>
               </div>
 
-              {/* Subtasks Placeholder (Visual only for now) */}
-              <div className="space-y-3">
+              {/* Attachments Section */}
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-sm">Subtareas</h3>
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Paperclip className="h-4 w-4 text-muted-foreground" /> Adjuntos
+                  </h3>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                    />
+                    <Label
+                      htmlFor="file-upload"
+                      className="cursor-pointer text-xs font-medium px-2 py-1 rounded-md bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center gap-1 transition-colors"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <PlusIcon className="h-3.5 w-3.5" />
+                      )}
+                      {isUploading ? "Subiendo..." : "Añadir"}
+                    </Label>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs">
-                    Ocultar completadas
-                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start text-muted-foreground h-9 text-sm font-normal border-dashed">
-                    <PlusIcon className="mr-2 h-3.5 w-3.5" /> Agregar subtarea
-                  </Button>
-                </div>
+
+                {/* Attachments List */}
+                {attachments.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20 group hover:bg-muted/40 transition-colors">
+                        {/* Icono según tipo */}
+                        <div className="h-10 w-10 rounded bg-background flex items-center justify-center shrink-0 border overflow-hidden">
+                          {file.type.includes('image') ? (
+                            <img src={file.url} alt={file.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{(file.size / 1024).toFixed(1)} KB</span>
+                            <span>•</span>
+                            <span>{format(new Date(file.uploadedAt), "d MMM, yy", { locale: es })}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <a 
+                            href={file.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-1.5 hover:bg-background rounded-md text-muted-foreground hover:text-primary transition-colors"
+                            title="Descargar / Ver"
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                          <button
+                            onClick={() => removeAttachment(index)}
+                            className="p-1.5 hover:bg-background rounded-md text-muted-foreground hover:text-destructive transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic pl-1">
+                    No hay archivos adjuntos.
+                  </div>
+                )}
               </div>
 
               {/* Activity / Comments Placeholder */}
@@ -249,6 +399,7 @@ export function TaskDetailSheet({
                     </div>
                     <div className="flex justify-between items-center">
                       <div className="flex gap-1">
+                        {/* Optional: Attach file to comment */}
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
                           <Paperclip className="h-3.5 w-3.5" />
                         </Button>
@@ -311,6 +462,38 @@ export function TaskDetailSheet({
                     className="bg-background border-0 shadow-sm hover:bg-accent/50 pl-9"
                   />
                   <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Estimated Time */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tiempo estimado</label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input 
+                      type="number"
+                      min="0"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      className="bg-background border-0 shadow-sm hover:bg-accent/50 pl-9"
+                      placeholder="0"
+                    />
+                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none font-medium">h</span>
+                  </div>
+                  <span className="text-muted-foreground font-medium">:</span>
+                  <div className="relative flex-1">
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={minutes}
+                      onChange={(e) => setMinutes(e.target.value)}
+                      className="bg-background border-0 shadow-sm hover:bg-accent/50 pl-3 pr-7"
+                      placeholder="00"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none font-medium">m</span>
+                  </div>
                 </div>
               </div>
 
@@ -394,4 +577,3 @@ function PlusIcon(props: any) {
     </svg>
   )
 }
-

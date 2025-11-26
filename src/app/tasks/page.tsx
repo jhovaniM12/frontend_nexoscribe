@@ -6,14 +6,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,7 +15,7 @@ import {
 import { Plus, Search, Filter, LayoutGrid, List as ListIcon, Loader2 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
-import { tasksApi, projectsApi, type Task, type Project } from "@/lib/api"
+import { tasksApi, projectsApi, type Task, type Project, type Attachment } from "@/lib/api"
 import { useOrganization } from "@/context/organization-context"
 import { KanbanBoard } from "@/components/tasks/KanbanBoard"
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet"
@@ -45,7 +37,7 @@ function TasksPageContent() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   
-  // Form State
+  // Form State - Only for initialization if needed, but Sheet handles its own state
   const [title, setTitle] = useState("")
   const [desc, setDesc] = useState("")
   const [status, setStatus] = useState("todo")
@@ -83,6 +75,7 @@ function TasksPageContent() {
   const handleNewTask = (initialStatus = 'todo') => {
     setDialogMode('create')
     setSelectedTask(null)
+    // Reset states just in case
     setTitle("")
     setDesc("")
     setStatus(initialStatus)
@@ -95,19 +88,6 @@ function TasksPageContent() {
   const handleEditTask = (task: Task) => {
     setDialogMode('edit')
     setSelectedTask(task)
-    setTitle(task.title)
-    setDesc(task.description || "")
-    setStatus(task.status)
-    setPriority(task.priority)
-    
-    // Manejar projectId si es objeto o string
-    let projectIdValue = "none"
-    if (task.projectId) {
-      projectIdValue = typeof task.projectId === 'object' ? task.projectId._id : task.projectId
-    }
-    setTaskProject(projectIdValue)
-    
-    setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "")
     setDialogOpen(true)
   }
 
@@ -151,21 +131,51 @@ function TasksPageContent() {
         status?: 'todo' | 'in_progress' | 'done'
         priority?: 'low' | 'medium' | 'high'
         dueDate?: string
+        estimatedTime?: number
+        attachments?: Attachment[]
       }> = {
         ...data,
         projectId: data.projectId 
           ? (typeof data.projectId === 'object' ? data.projectId._id : data.projectId)
-          : undefined
+          : undefined,
+        estimatedTime: data.estimatedTime,
+        attachments: data.attachments,
       }
 
       if (dialogMode === 'create') {
         const res = await tasksApi.create(normalizedData as any)
-        setTasks([...tasks, res.task])
+        // Si hay filtro por proyecto, solo agregamos la tarea si coincide
+        if (
+          filterProject === 'all' ||
+          !res.task.projectId ||
+          (typeof res.task.projectId === 'object'
+            ? res.task.projectId._id === filterProject
+            : res.task.projectId === filterProject)
+        ) {
+          setTasks([...tasks, res.task])
+        }
         toast.success("Tarea creada")
       } else {
         if (!selectedTask) return
         const res = await tasksApi.update(selectedTask._id, normalizedData)
-        setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
+
+        // Actualizar o quitar la tarea según el filtro actual
+        if (filterProject === 'all') {
+          setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
+        } else {
+          const newProjectId =
+            res.task.projectId && typeof res.task.projectId === 'object'
+              ? res.task.projectId._id
+              : res.task.projectId
+
+          if (newProjectId && newProjectId !== filterProject) {
+            // Si la tarea ya no pertenece al proyecto filtrado, la removemos de la lista
+            setTasks(tasks.filter(t => t._id !== selectedTask._id))
+          } else {
+            // Si sigue perteneciendo al proyecto filtrado, solo actualizamos sus datos
+            setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
+          }
+        }
         toast.success("Tarea actualizada")
       }
       setDialogOpen(false)

@@ -16,7 +16,7 @@ import { authApi } from "@/lib/api"
 
 export default function Register() {
   const router = useRouter()
-  const { login, user, loading: authLoading } = useAuth() // Usamos login para auto-login después del registro
+  const { login } = useAuth() // Usamos login para auto-login después del registro
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -24,12 +24,6 @@ export default function Register() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-
-  // Redirigir si ya está autenticado
-  if (!authLoading && user) {
-    router.push('/dashboard')
-    return null
-  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()

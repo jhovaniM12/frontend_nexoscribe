@@ -66,7 +66,6 @@ export const api = {
     return this.request<T>(endpoint, { method: 'DELETE' })
   },
 
-  // Método específico para subir archivos (FormData)
   async upload<T>(endpoint: string, file: File, fieldName: string = 'file', additionalData?: Record<string, string>): Promise<T> {
     const formData = new FormData();
     formData.append(fieldName, file);
@@ -77,17 +76,10 @@ export const api = {
       });
     }
 
-    // Usamos fetch directamente para evitar que request() sobrescriba el Content-Type
     const url = `${API_URL}${endpoint}`
     const currentOrgId = typeof window !== 'undefined' ? localStorage.getItem('currentOrgId') : null;
     
     const headers: Record<string, string> = {};
-    // Si usamos la función base, necesitamos una forma de NO poner Content-Type: application/json
-    // Por ahora, replico la logica básica:
-    
-    if (typeof window !== 'undefined') {
-       // Obtener token si es necesario (si lo manejas en headers, pero veo que usas cookies)
-    }
     
     if (currentOrgId) {
       headers['x-org-id'] = currentOrgId;
@@ -97,7 +89,7 @@ export const api = {
         method: 'POST',
         body: formData,
         credentials: 'include',
-        headers, // NO incluir Content-Type, el navegador lo pone con el boundary correcto
+        headers, 
     });
 
     if (!response.ok) {
@@ -112,7 +104,6 @@ export const api = {
     return response.json();
   },
 }
-
 
 // Tipos de Organizaciones
 export interface Organization {
@@ -311,6 +302,14 @@ export const projectsApi = {
 }
 
 // Tipos de Tareas
+export interface Attachment {
+  name: string
+  url: string
+  type: string
+  size: number
+  uploadedAt: string
+}
+
 export interface Task {
   _id: string
   title: string
@@ -326,9 +325,11 @@ export interface Task {
   status: 'todo' | 'in_progress' | 'done'
   priority: 'low' | 'medium' | 'high'
   dueDate?: string
+  estimatedTime?: number // Minutos
   position: number
   isOverdue?: boolean
   overdueAt?: string
+  attachments?: Attachment[]
   createdAt: string
   updatedAt: string
 }
@@ -340,7 +341,9 @@ export interface CreateTaskRequest {
   status?: 'todo' | 'in_progress' | 'done'
   priority?: 'low' | 'medium' | 'high'
   dueDate?: string
+  estimatedTime?: number
   assignedTo?: string
+  attachments?: Attachment[]
 }
 
 // API de Tareas
@@ -362,7 +365,6 @@ export const tasksApi = {
   delete: (id: string) => 
     api.delete<{ message: string }>(`/api/task/delete-task/${id}`),
 }
-
 // API de Archivos
 export const uploadApi = {
   uploadAvatar: (file: File) => 

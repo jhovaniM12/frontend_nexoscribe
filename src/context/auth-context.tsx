@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi, type LoginResponse, api } from '@/lib/api'
 
@@ -20,6 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   isAuthenticated: boolean
+  checkAuth: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -29,24 +30,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  // Verificar autenticación con el backend al cargar
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await api.get<{ user: User }>('/api/me')
-        if (response.user) {
-          setUser(response.user)
-        }
-      } catch (error) {
-        // Token inválido o no hay sesión
-        setUser(null)
-      } finally {
-        setLoading(false)
+  // Verificar autenticación con el backend
+  const checkAuth = useCallback(async () => {
+    try {
+      const response = await api.get<{ user: User }>('/api/me')
+      if (response.user) {
+        setUser(response.user)
       }
+    } catch (error) {
+      // Token inválido o no hay sesión
+      setUser(null)
+    } finally {
+      setLoading(false)
     }
-
-    checkAuth()
   }, [])
+
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
 
   const login = async (email: string, password: string) => {
     try {
@@ -78,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isAuthenticated: !!user,
+        checkAuth,
       }}
     >
       {children}
