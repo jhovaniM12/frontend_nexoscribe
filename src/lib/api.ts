@@ -372,4 +372,42 @@ export const uploadApi = {
   
   uploadFile: (file: File, folder: string = 'general') => 
     api.upload<{ message: string; url: string; filename: string; mimetype: string }>('/api/upload/file', file, 'file', { folder }),
+
+  getProxyUrl: (url: string) => `${API_URL}/api/proxy/image?url=${encodeURIComponent(url)}`
+}
+
+// Tipos de Pizarra
+export interface Whiteboard {
+  _id: string
+  title: string
+  thumbnail?: string
+  content: any
+  createdAt: string
+  updatedAt: string
+  createdBy: {
+    _id: string
+    name: string
+    avatar?: string
+  }
+}
+
+// API de Pizarras (Whiteboards)
+export const whiteboardApi = {
+  getAll: () => 
+    api.get<{ whiteboards: Whiteboard[] }>('/api/whiteboard'),
+  
+  create: (title: string) => 
+    api.post<{ message: string; whiteboard: Whiteboard }>('/api/whiteboard', { title }),
+  
+  getById: (id: string) => 
+    api.get<{ whiteboard: Whiteboard }>(`/api/whiteboard/${id}`),
+  
+  update: (id: string, data: { title?: string, content?: any, thumbnail?: string }) => 
+    api.request<{ message: string; whiteboard: Whiteboard }>(`/api/whiteboard/${id}`, { 
+        method: 'PUT',
+        body: JSON.stringify(data) 
+    }),
+
+  delete: (id: string) =>
+    api.delete<{ message: string }>(`/api/whiteboard/${id}`)
 }

@@ -45,6 +45,7 @@ interface TaskDetailSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   task: Task | null // null = creating new task
+  initialDate?: Date
   projects: Project[]
   onSave: (taskData: Partial<Task>) => Promise<void>
   onDelete?: (task: Task) => void
@@ -54,6 +55,7 @@ export function TaskDetailSheet({
   open, 
   onOpenChange, 
   task, 
+  initialDate,
   projects, 
   onSave,
   onDelete
@@ -100,7 +102,7 @@ export function TaskDetailSheet({
         setStatus("todo")
         setPriority("medium")
         setProjectId("none")
-        setDueDate("")
+        setDueDate(initialDate ? format(initialDate, "yyyy-MM-dd") : "")
         setHours("")
         setMinutes("")
         setAttachments([])

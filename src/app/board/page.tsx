@@ -1,310 +1,190 @@
 'use client'
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Layout } from "@/components/Layout"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
-  Pencil, 
-  Type, 
-  Square, 
-  Circle, 
-  Image as ImageIcon,
-  Undo2,
-  Redo2,
-  Save,
-  Download
+  Plus, 
+  Trash2, 
+  MoreVertical, 
+  PenSquare,
+  Calendar,
+  Loader2
 } from "lucide-react"
-import { Canvas as FabricCanvas, Circle as FabricCircle, Rect, IText, PencilBrush, Image as FabricImage } from "fabric"
 import { toast } from "sonner"
+import { whiteboardApi, type Whiteboard } from "@/lib/api"
+import { useRouter } from "next/navigation"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
-type Tool = 'select' | 'draw' | 'text' | 'rectangle' | 'circle'
-type Color = '#6366F1' | '#22C55E' | '#EF4444' | '#000000'
+export default function BoardGallery() {
+  const router = useRouter()
+  const [whiteboards, setWhiteboards] = useState<Whiteboard[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  // Create Dialog State
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [newTitle, setNewTitle] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
 
-const COLORS: { value: Color; label: string }[] = [
-  { value: '#6366F1', label: 'Primario' },
-  { value: '#22C55E', label: 'Secundario' },
-  { value: '#EF4444', label: 'Rojo' },
-  { value: '#000000', label: 'Negro' },
-]
-
-export default function Board() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null)
-  const [activeTool, setActiveTool] = useState<Tool>('draw')
-  const [activeColor, setActiveColor] = useState<Color>('#6366F1')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const loadBoards = async () => {
+    try {
+      setLoading(true)
+      const { whiteboards } = await whiteboardApi.getAll()
+      setWhiteboards(whiteboards)
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al cargar tableros")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!canvasRef.current) return
-
-    // Calcular dimensiones responsivas
-    const containerWidth = Math.min(1200, window.innerWidth - 200)
-    const containerHeight = Math.min(700, window.innerHeight - 200)
-
-    const canvas = new FabricCanvas(canvasRef.current, {
-      width: containerWidth,
-      height: containerHeight,
-      backgroundColor: '#ffffff',
-    })
-
-    // Initialize drawing brush
-    const brush = new PencilBrush(canvas)
-    brush.color = activeColor
-    brush.width = 3
-    canvas.freeDrawingBrush = brush
-
-    setFabricCanvas(canvas)
-    toast.success('¡Tablero listo para dibujar!')
-
-    return () => {
-      canvas.dispose()
-    }
+    loadBoards()
   }, [])
 
-  useEffect(() => {
-    if (!fabricCanvas) return
-
-    fabricCanvas.isDrawingMode = activeTool === 'draw'
+  const handleCreate = async () => {
+    if (!newTitle.trim()) return
     
-    if (activeTool === 'draw' && fabricCanvas.freeDrawingBrush) {
-      fabricCanvas.freeDrawingBrush.color = activeColor
-      fabricCanvas.freeDrawingBrush.width = 3
-    }
-  }, [activeTool, activeColor, fabricCanvas])
-
-  const handleToolClick = (tool: Tool) => {
-    setActiveTool(tool)
-
-    if (!fabricCanvas) return
-
-    if (tool === 'rectangle') {
-      const rect = new Rect({
-        left: 100,
-        top: 100,
-        fill: activeColor,
-        width: 150,
-        height: 100,
-        stroke: activeColor,
-        strokeWidth: 2,
-      })
-      fabricCanvas.add(rect)
-      fabricCanvas.setActiveObject(rect)
-      fabricCanvas.renderAll()
-      toast.success('Rectángulo añadido')
-    } else if (tool === 'circle') {
-      const circle = new FabricCircle({
-        left: 100,
-        top: 100,
-        fill: 'transparent',
-        radius: 60,
-        stroke: activeColor,
-        strokeWidth: 3,
-      })
-      fabricCanvas.add(circle)
-      fabricCanvas.setActiveObject(circle)
-      fabricCanvas.renderAll()
-      toast.success('Círculo añadido')
-    } else if (tool === 'text') {
-      const text = new IText('Escribe aquí...', {
-        left: 100,
-        top: 100,
-        fill: activeColor,
-        fontSize: 24,
-        fontFamily: 'Inter, sans-serif',
-      })
-      fabricCanvas.add(text)
-      fabricCanvas.setActiveObject(text)
-      fabricCanvas.renderAll()
-      toast.success('Texto añadido - haz doble clic para editar')
+    setIsCreating(true)
+    try {
+      const { whiteboard } = await whiteboardApi.create(newTitle)
+      toast.success("Tablero creado")
+      router.push(`/board/${whiteboard._id}`)
+    } catch (error) {
+      toast.error("Error al crear tablero")
+      setIsCreating(false)
     }
   }
 
-  const handleUndo = () => {
-    if (!fabricCanvas) return
-    const objects = fabricCanvas.getObjects()
-    if (objects.length > 0) {
-      fabricCanvas.remove(objects[objects.length - 1])
-      fabricCanvas.renderAll()
-      toast.info('Deshacer')
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    if (!confirm("¿Estás seguro de eliminar este tablero?")) return
+
+    try {
+      await whiteboardApi.delete(id)
+      setWhiteboards(prev => prev.filter(b => b._id !== id))
+      toast.success("Tablero eliminado")
+    } catch (error) {
+      toast.error("Error al eliminar")
     }
-  }
-
-  const handleClear = () => {
-    if (!fabricCanvas) return
-    fabricCanvas.clear()
-    fabricCanvas.backgroundColor = '#ffffff'
-    fabricCanvas.renderAll()
-    toast.info('Tablero limpiado')
-  }
-
-  const handleSave = () => {
-    if (!fabricCanvas) return
-    const json = fabricCanvas.toJSON()
-    localStorage.setItem('noteflow-board', JSON.stringify(json))
-    toast.success('¡Tablero guardado!')
-  }
-
-  const handleExport = () => {
-    if (!fabricCanvas) return
-    const dataURL = fabricCanvas.toDataURL({
-      format: 'png',
-      quality: 1,
-      multiplier: 1,
-    })
-    const link = document.createElement('a')
-    link.download = 'noteflow-board.png'
-    link.href = dataURL
-    link.click()
-    toast.success('Tablero exportado como PNG')
-  }
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !fabricCanvas) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const imgUrl = event.target?.result as string
-      const imgElement = new Image()
-      imgElement.src = imgUrl
-      imgElement.onload = () => {
-        const fabricImage = new FabricImage(imgElement, {
-          left: 100,
-          top: 100,
-          scaleX: 0.5,
-          scaleY: 0.5,
-        })
-        fabricCanvas.add(fabricImage)
-        fabricCanvas.renderAll()
-        toast.success('Imagen añadida al tablero')
-      }
-    }
-    reader.readAsDataURL(file)
   }
 
   return (
     <Layout>
-      <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold">Tablero Visual</h1>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="icon" onClick={handleUndo}>
-              <Undo2 className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleClear}>
-              <Redo2 className="h-4 w-4" />
-            </Button>
-            <Separator orientation="vertical" className="h-8 hidden sm:block" />
-            <Button variant="outline" className="gap-2" onClick={handleSave}>
-              <Save className="h-4 w-4" />
-              <span className="hidden sm:inline">Guardar</span>
-            </Button>
-            <Button variant="outline" className="gap-2" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportar</span>
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Mis Pizarras</h1>
+            <p className="text-muted-foreground">Espacios visuales para tus ideas</p>
+          </div>
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Tablero
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : whiteboards.length === 0 ? (
+          <div className="text-center py-12 border-2 border-dashed rounded-lg">
+            <div className="bg-muted/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <PenSquare className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium mb-2">No tienes tableros aún</h3>
+            <p className="text-muted-foreground mb-4">Crea uno nuevo para empezar a dibujar y planificar.</p>
+            <Button onClick={() => setIsCreateOpen(true)}>
+              Crear mi primer tablero
             </Button>
           </div>
-        </div>
-
-        {/* Tools & Canvas */}
-        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
-          {/* Toolbar */}
-          <Card className="shadow-card p-3 h-fit w-full lg:w-auto">
-            <div className="space-y-2">
-              <Button
-                variant={activeTool === 'select' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="w-full hover:bg-accent"
-                onClick={() => setActiveTool('select')}
-                title="Seleccionar"
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {whiteboards.map((board) => (
+              <Card 
+                key={board._id} 
+                className="group cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary/50 hover:border-l-primary"
+                onClick={() => router.push(`/board/${board._id}`)}
               >
-                <Pencil className="h-5 w-5" />
-              </Button>
-              <Button
-                variant={activeTool === 'draw' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="w-full hover:bg-accent"
-                onClick={() => setActiveTool('draw')}
-                title="Lápiz"
-              >
-                <Pencil className="h-5 w-5" />
-              </Button>
-              <Button
-                variant={activeTool === 'text' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="w-full hover:bg-accent"
-                onClick={() => handleToolClick('text')}
-                title="Texto"
-              >
-                <Type className="h-5 w-5" />
-              </Button>
-              <Button
-                variant={activeTool === 'rectangle' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="w-full hover:bg-accent"
-                onClick={() => handleToolClick('rectangle')}
-                title="Rectángulo"
-              >
-                <Square className="h-5 w-5" />
-              </Button>
-              <Button
-                variant={activeTool === 'circle' ? 'secondary' : 'ghost'}
-                size="icon"
-                className="w-full hover:bg-accent"
-                onClick={() => handleToolClick('circle')}
-                title="Círculo"
-              >
-                <Circle className="h-5 w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-full hover:bg-accent"
-                onClick={() => fileInputRef.current?.click()}
-                title="Subir Imagen"
-              >
-                <ImageIcon className="h-5 w-5" />
-              </Button>
-              
-              <Separator className="my-2" />
-              
-              {/* Color Picker */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {COLORS.map((color) => (
-                    <button
-                      key={color.value}
-                      onClick={() => setActiveColor(color.value)}
-                      className={`w-8 h-8 rounded border-2 transition-all ${
-                        activeColor === color.value ? 'border-foreground scale-110' : 'border-border'
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                      title={color.label}
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg truncate pr-2">{board.title}</CardTitle>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="text-destructive" onClick={(e) => handleDelete(board._id, e)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 aspect-video relative overflow-hidden bg-muted/20">
+                  {board.thumbnail ? (
+                    <img 
+                      src={board.thumbnail} 
+                      alt={board.title} 
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center border-b">
+                      <PenSquare className="h-12 w-12 text-muted-foreground/20" />
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="pt-2 text-xs text-muted-foreground flex gap-2 items-center">
+                  <Calendar className="h-3 w-3" />
+                  {format(new Date(board.updatedAt), "d MMM, yyyy", { locale: es })}
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
 
-          {/* Canvas */}
-          <Card className="flex-1 shadow-card p-3 sm:p-6 bg-muted/30 overflow-auto">
-            <div className="overflow-auto">
-              <canvas ref={canvasRef} className="border border-border rounded-lg shadow-sm max-w-full" />
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nuevo Tablero</DialogTitle>
+              <DialogDescription>Dale un nombre a tu espacio creativo.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input 
+                placeholder="Ej: Lluvia de ideas Q4" 
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
             </div>
-          </Card>
-        </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          className="hidden"
-        />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCreate} disabled={isCreating || !newTitle.trim()}>
+                {isCreating ? "Creando..." : "Crear"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   )

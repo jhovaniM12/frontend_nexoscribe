@@ -95,11 +95,11 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
   }
 
   return (
-    <div className="flex h-full gap-4 overflow-x-auto pb-4 snap-x">
+    <div className="flex flex-1 gap-4 overflow-x-auto pb-4 snap-x h-full">
       {COLUMNS.map((col) => (
         <div 
           key={col.id}
-          className="flex-shrink-0 w-80 flex flex-col bg-muted/30 rounded-lg border border-border/50 snap-center h-fit max-h-full"
+          className="flex-shrink-0 w-80 flex flex-col bg-muted/30 rounded-lg border border-border/50 snap-center h-full"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, col.id)}
         >

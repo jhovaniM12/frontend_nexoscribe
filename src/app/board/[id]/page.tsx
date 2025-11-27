@@ -1,6 +1,5 @@
 'use client'
 
-import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { Layout } from "@/components/Layout"
 import { Button } from "@/components/ui/button"
@@ -13,6 +12,10 @@ import {
   Circle, 
   Image as ImageIcon,
   Undo2,
+  Eraser,
+  MousePointer2,
+  Trash2,
+  RotateCcw,
   Redo2,
   Save,
   Download,
@@ -20,31 +23,48 @@ import {
 } from "lucide-react"
 import { Canvas as FabricCanvas, Circle as FabricCircle, Rect, IText, PencilBrush, Image as FabricImage } from "fabric"
 import { toast } from "sonner"
-import Link from "next/link"
+import { uploadApi, whiteboardApi } from "@/lib/api"
+import { useParams, useRouter } from "next/navigation"
 
-type Tool = 'select' | 'draw' | 'text' | 'rectangle' | 'circle'
-type Color = '#6366F1' | '#22C55E' | '#EF4444' | '#000000'
+type Tool = 'select' | 'draw' | 'eraser' | 'text' | 'rectangle' | 'circle'
+type Color = string
 
 const COLORS: { value: Color; label: string }[] = [
-  { value: '#6366F1', label: 'Primario' },
-  { value: '#22C55E', label: 'Secundario' },
-  { value: '#EF4444', label: 'Rojo' },
   { value: '#000000', label: 'Negro' },
+  { value: '#ffffff', label: 'Blanco' },
+  { value: '#ef4444', label: 'Rojo' },
+  { value: '#22c55e', label: 'Verde' },
+  { value: '#3b82f6', label: 'Azul' },
+  { value: '#eab308', label: 'Amarillo' },
+  { value: '#a855f7', label: 'Púrpura' },
+  { value: '#f97316', label: 'Naranja' },
 ]
 
-export default function BoardDetail() {
-  const params = useParams()
-  const boardId = params.id as string
-  
+function dataURLtoFile(dataurl: string, filename: string) {
+    const arr = dataurl.split(',')
+    const mime = arr[0].match(/:(.*?);/)?.[1]
+    const bstr = atob(arr[1])
+    let n = bstr.length
+    const u8arr = new Uint8Array(n)
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n)
+    }
+    return new File([u8arr], filename, {type:mime})
+}
+
+export default function BoardEditor() {
+  const { id } = useParams()
+  const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null)
   const [activeTool, setActiveTool] = useState<Tool>('draw')
-  const [activeColor, setActiveColor] = useState<Color>('#6366F1')
-  const [boardTitle, setBoardTitle] = useState(`Tablero ${boardId}`)
+  const [activeColor, setActiveColor] = useState<Color>('#000000')
+  const [strokeWidth, setStrokeWidth] = useState(3)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [boardTitle, setBoardTitle] = useState("")
 
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || !id) return
 
     // Calcular dimensiones responsivas
     const containerWidth = Math.min(1200, window.innerWidth - 200)
@@ -64,41 +84,76 @@ export default function BoardDetail() {
 
     setFabricCanvas(canvas)
     
-    // Cargar tablero guardado si existe
-    loadBoard(boardId, canvas)
-    
-    toast.success('¡Tablero listo para dibujar!')
+    // Cargar tablero desde la nube por ID
+    const loadBoard = async () => {
+      try {
+        const { whiteboard } = await whiteboardApi.getById(id as string)
+        setBoardTitle(whiteboard.title)
+        
+        // Validación defensiva extrema para evitar crashes de Fabric
+        const isValidContent = 
+            whiteboard && 
+            whiteboard.content && 
+            typeof whiteboard.content === 'object' &&
+            Array.isArray((whiteboard.content as any).objects) &&
+            (whiteboard.content as any).objects.length > 0;
+
+        if (isValidContent) {
+          try {
+              // Clonar para evitar mutaciones
+              const contentToLoad = JSON.parse(JSON.stringify(whiteboard.content));
+              await canvas.loadFromJSON(contentToLoad);
+              canvas.requestRenderAll();
+              toast.success('Tablero cargado');
+          } catch (jsonError) {
+              console.warn("Advertencia: No se pudo restaurar el estado del tablero (posiblemente vacío o versión incompatible). Se inicia lienzo limpio.", jsonError);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading board:", error)
+        toast.error("Error al cargar el tablero")
+      }
+    }
+    loadBoard()
 
     return () => {
       canvas.dispose()
     }
-  }, [boardId])
+  }, [id])
 
   useEffect(() => {
     if (!fabricCanvas) return
 
-    fabricCanvas.isDrawingMode = activeTool === 'draw'
-    
-    if (activeTool === 'draw' && fabricCanvas.freeDrawingBrush) {
-      fabricCanvas.freeDrawingBrush.color = activeColor
-      fabricCanvas.freeDrawingBrush.width = 3
-    }
-  }, [activeTool, activeColor, fabricCanvas])
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input or textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
-  const loadBoard = (id: string, canvas: FabricCanvas) => {
-    const savedBoard = localStorage.getItem(`nexoscribe-board-${id}`)
-    if (savedBoard) {
-      try {
-        const boardData = JSON.parse(savedBoard)
-        canvas.loadFromJSON(boardData, () => {
-          canvas.renderAll()
-          toast.info('Tablero cargado')
-        })
-      } catch (error) {
-        console.error('Error loading board:', error)
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const activeObject = fabricCanvas.getActiveObject()
+        // Don't delete if editing text
+        if (activeObject && (activeObject as any).isEditing) return
+        
+        handleDeleteSelected()
       }
     }
-  }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [fabricCanvas])
+
+  useEffect(() => {
+    if (!fabricCanvas) return
+
+    if (activeTool === 'draw' || activeTool === 'eraser') {
+        fabricCanvas.isDrawingMode = true
+        if (fabricCanvas.freeDrawingBrush) {
+            fabricCanvas.freeDrawingBrush.color = activeTool === 'eraser' ? '#ffffff' : activeColor
+            fabricCanvas.freeDrawingBrush.width = activeTool === 'eraser' ? 20 : strokeWidth
+        }
+    } else {
+        fabricCanvas.isDrawingMode = false
+    }
+  }, [activeTool, activeColor, strokeWidth, fabricCanvas])
 
   const handleToolClick = (tool: Tool) => {
     setActiveTool(tool)
@@ -147,6 +202,22 @@ export default function BoardDetail() {
     }
   }
 
+  const handleDeleteSelected = () => {
+    if (!fabricCanvas) return
+    const activeObjects = fabricCanvas.getActiveObjects()
+    
+    if (activeObjects.length) {
+      fabricCanvas.discardActiveObject()
+      activeObjects.forEach((obj) => {
+        fabricCanvas.remove(obj)
+      })
+      fabricCanvas.renderAll()
+      toast.info('Elemento eliminado')
+    } else {
+        toast.warning('Selecciona un elemento para eliminar')
+    }
+  }
+
   const handleUndo = () => {
     if (!fabricCanvas) return
     const objects = fabricCanvas.getObjects()
@@ -165,11 +236,33 @@ export default function BoardDetail() {
     toast.info('Tablero limpiado')
   }
 
-  const handleSave = () => {
-    if (!fabricCanvas) return
-    const json = fabricCanvas.toJSON()
-    localStorage.setItem(`nexoscribe-board-${boardId}`, JSON.stringify(json))
-    toast.success('¡Tablero guardado!')
+  const handleSave = async () => {
+    if (!fabricCanvas || !id) return
+    
+    const toastId = toast.loading("Guardando tablero...")
+
+    try {
+      const json = fabricCanvas.toJSON()
+      
+      // 1. Generar miniatura (baja calidad para que sea rápido)
+      const dataURL = fabricCanvas.toDataURL({
+        format: 'jpeg',
+        quality: 0.5,
+        multiplier: 0.5, // Mitad de tamaño
+      })
+
+      // 2. Convertir a archivo y subir
+      const file = dataURLtoFile(dataURL, 'thumbnail.jpg')
+      const { url: thumbnailUrl } = await uploadApi.uploadFile(file, 'whiteboard-thumbs')
+      
+      // 3. Guardar en backend
+      await whiteboardApi.update(id as string, { content: json, thumbnail: thumbnailUrl })
+      
+      toast.success('¡Cambios guardados!', { id: toastId })
+    } catch (error) {
+      console.error(error)
+      toast.error('Error al guardar cambios', { id: toastId })
+    }
   }
 
   const handleExport = () => {
@@ -180,34 +273,40 @@ export default function BoardDetail() {
       multiplier: 1,
     })
     const link = document.createElement('a')
-    link.download = `nexoscribe-board-${boardId}.png`
+    link.download = `${boardTitle || 'tablero'}.png`
     link.href = dataURL
     link.click()
     toast.success('Tablero exportado como PNG')
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !fabricCanvas) return
 
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const imgUrl = event.target?.result as string
-      const imgElement = new Image()
-      imgElement.src = imgUrl
-      imgElement.onload = () => {
-        const fabricImage = new FabricImage(imgElement, {
-          left: 100,
-          top: 100,
-          scaleX: 0.5,
-          scaleY: 0.5,
-        })
-        fabricCanvas.add(fabricImage)
-        fabricCanvas.renderAll()
-        toast.success('Imagen añadida al tablero')
-      }
+    const toastId = toast.loading("Subiendo imagen...")
+
+    try {
+      const response = await uploadApi.uploadFile(file, 'whiteboard')
+      // Use proxy to avoid CORS issues when saving canvas
+      const proxyUrl = uploadApi.getProxyUrl(response.url)
+      const fabricImage = await FabricImage.fromURL(proxyUrl, { crossOrigin: 'anonymous' })
+      
+      fabricImage.set({
+        left: 100,
+        top: 100,
+        scaleX: 0.5,
+        scaleY: 0.5,
+      })
+      
+      fabricCanvas.add(fabricImage)
+      fabricCanvas.setActiveObject(fabricImage)
+      fabricCanvas.renderAll()
+      
+      toast.success('Imagen añadida al tablero', { id: toastId })
+    } catch (error) {
+      console.error(error)
+      toast.error('Error al subir imagen', { id: toastId })
     }
-    reader.readAsDataURL(file)
   }
 
   return (
@@ -215,20 +314,24 @@ export default function BoardDetail() {
       <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/board">
-              <Button variant="outline" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold">{boardTitle}</h1>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/board')}>
+                <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl sm:text-3xl font-bold truncate max-w-[300px]">
+                {boardTitle || 'Editando Tablero'}
+            </h1>
           </div>
+          
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="icon" onClick={handleUndo}>
+            <Button variant="outline" size="icon" onClick={handleUndo} title="Deshacer">
               <Undo2 className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={handleClear}>
-              <Redo2 className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={handleDeleteSelected} title="Eliminar seleccionado">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={handleClear} title="Limpiar todo">
+              <RotateCcw className="h-4 w-4" />
             </Button>
             <Separator orientation="vertical" className="h-8 hidden sm:block" />
             <Button variant="outline" className="gap-2" onClick={handleSave}>
@@ -252,9 +355,9 @@ export default function BoardDetail() {
                 size="icon"
                 className="w-full hover:bg-accent"
                 onClick={() => setActiveTool('select')}
-                title="Seleccionar"
+                title="Seleccionar (Mover objetos)"
               >
-                <Pencil className="h-5 w-5" />
+                <MousePointer2 className="h-5 w-5" />
               </Button>
               <Button
                 variant={activeTool === 'draw' ? 'secondary' : 'ghost'}
@@ -264,6 +367,15 @@ export default function BoardDetail() {
                 title="Lápiz"
               >
                 <Pencil className="h-5 w-5" />
+              </Button>
+              <Button
+                variant={activeTool === 'eraser' ? 'secondary' : 'ghost'}
+                size="icon"
+                className="w-full hover:bg-accent"
+                onClick={() => setActiveTool('eraser')}
+                title="Borrador"
+              >
+                <Eraser className="h-5 w-5" />
               </Button>
               <Button
                 variant={activeTool === 'text' ? 'secondary' : 'ghost'}
@@ -293,7 +405,7 @@ export default function BoardDetail() {
                 <Circle className="h-5 w-5" />
               </Button>
               <Button
-                variant="ghost"
+                variant={activeTool === 'circle' ? 'secondary' : 'ghost'}
                 size="icon"
                 className="w-full hover:bg-accent"
                 onClick={() => fileInputRef.current?.click()}
@@ -303,21 +415,52 @@ export default function BoardDetail() {
               </Button>
               
               <Separator className="my-2" />
+
+              {/* Stroke Width */}
+              <div className="space-y-2 px-1">
+                <label className="text-xs font-medium text-muted-foreground">Grosor</label>
+                <div className="flex gap-1">
+                  {[2, 4, 6, 10].map((width) => (
+                    <button
+                      key={width}
+                      onClick={() => setStrokeWidth(width)}
+                      className={`flex-1 h-6 rounded flex items-center justify-center hover:bg-accent transition-colors ${strokeWidth === width ? 'bg-accent' : ''}`}
+                      title={`Grosor ${width}px`}
+                    >
+                      <div 
+                        className="bg-foreground rounded-full" 
+                        style={{ width: Math.min(width + 2, 16), height: Math.min(width + 2, 16) }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <Separator className="my-2" />
               
               {/* Color Picker */}
               <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-4 gap-1.5">
                   {COLORS.map((color) => (
                     <button
                       key={color.value}
                       onClick={() => setActiveColor(color.value)}
-                      className={`w-8 h-8 rounded border-2 transition-all ${
-                        activeColor === color.value ? 'border-foreground scale-110' : 'border-border'
+                      className={`w-full aspect-square rounded border transition-all ${
+                        activeColor === color.value ? 'border-foreground scale-110 ring-1 ring-offset-1 ring-foreground' : 'border-border'
                       }`}
                       style={{ backgroundColor: color.value }}
                       title={color.label}
                     />
                   ))}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                    <label className="text-xs font-medium text-muted-foreground">Personalizado:</label>
+                    <input 
+                        type="color" 
+                        value={activeColor}
+                        onChange={(e) => setActiveColor(e.target.value)}
+                        className="h-6 w-full cursor-pointer rounded border-0 p-0"
+                    />
                 </div>
               </div>
             </div>
