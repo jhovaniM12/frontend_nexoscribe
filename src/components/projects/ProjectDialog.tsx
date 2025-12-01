@@ -14,12 +14,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
-import { type Project } from "@/lib/api"
 
 interface ProjectDialogProps {
   open: boolean
   mode: 'create' | 'edit'
-  project: Project | null
   name: string
   description: string
   status: string
@@ -34,7 +32,6 @@ interface ProjectDialogProps {
 export function ProjectDialog({
   open,
   mode,
-  project,
   name,
   description,
   status,

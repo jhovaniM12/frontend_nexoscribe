@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { authApi, type LoginResponse, api } from '@/lib/api'
+import { authApi, api } from '@/lib/api'
 
 interface User {
   _id: string
@@ -12,12 +12,14 @@ interface User {
   systemRole?: string
   isActive: boolean
   avatar?: string
+  accountType?: 'individual' | 'business'
+  companyName?: string
 }
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, redirectTo?: string) => Promise<void>
   logout: () => Promise<void>
   isAuthenticated: boolean
   checkAuth: () => Promise<void>
@@ -37,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.user) {
         setUser(response.user)
       }
-    } catch (error) {
+    } catch {
       // Token inválido o no hay sesión
       setUser(null)
     } finally {
@@ -49,12 +51,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth()
   }, [checkAuth])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, redirectTo?: string) => {
     try {
       const response = await authApi.login({ email, password })
       setUser(response.user as User)
       setLoading(false)
-      router.push('/dashboard')
+      
+      // Si hay un redirect, usarlo; si no, redirección inteligente según rol
+      if (redirectTo) {
+        router.push(redirectTo)
+      } else if (response.user.systemRole === 'superadmin') {
+        router.push('/admin')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (error) {
       throw error
     }

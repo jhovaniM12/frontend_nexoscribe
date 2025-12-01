@@ -2,15 +2,15 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MoreVertical, Calendar, User as UserIcon, Trash2, Edit, Paperclip, Clock, AlertCircle, CheckCircle2, Circle } from "lucide-react"
+import { Calendar, User as UserIcon, Edit, Paperclip, Clock, CheckCircle2, FolderKanban } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { type Task } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -21,16 +21,13 @@ interface TaskCardProps {
   onDelete: (task: Task) => void
   onDragStart: (e: React.DragEvent, task: Task) => void
   onStatusToggle?: (task: Task) => void
+  onQuickAssign?: (taskId: string, userId: string | null) => void
+  availableMembers?: Array<{ userId: { _id: string; name: string; email: string; avatar?: string } | string; role: string }>
+  owner?: { _id: string; name: string; email: string; avatar?: string } | null
+  currentUserId?: string
 }
 
-export function TaskCard({ task, onEdit, onDelete, onDragStart, onStatusToggle }: TaskCardProps) {
-  
-  // Texto limpio
-  const getPreviewText = (html: string) => {
-    if (!html) return ""
-    const withSpaces = html.replace(/<br\s*\/?>/gi, ' ').replace(/<\/p>/gi, ' ').replace(/<\/div>/gi, ' ')
-    return withSpaces.replace(/<[^>]*>?/gm, '').trim()
-  }
+export function TaskCard({ task, onEdit, onDragStart, onStatusToggle, onQuickAssign, availableMembers = [], owner }: TaskCardProps) {
 
   // Funciones de fecha nativas
   const isToday = (date: Date) => {
@@ -67,61 +64,43 @@ export function TaskCard({ task, onEdit, onDelete, onDragStart, onStatusToggle }
     return `${m}m`
   }
 
-  // Badge de prioridad
-  const getPriorityBadge = (priority: string) => {
+  // Badge de prioridad - Mejor contraste de colores sin hover
+  const getPriorityBadge = (priority?: string) => {
     switch (priority) {
       case 'high': 
-        return { text: 'Alta', color: 'bg-red-100 text-red-700 border-red-200' }
+        return { text: 'Alto', color: 'bg-purple-500/30 dark:bg-purple-500/40 text-purple-700 dark:text-purple-200 border-0 hover:bg-purple-500/30 hover:dark:bg-purple-500/40' }
       case 'medium': 
-        return { text: 'Media', color: 'bg-amber-100 text-amber-700 border-amber-200' }
+        return { text: 'Medio', color: 'bg-orange-500/30 dark:bg-orange-500/40 text-orange-700 dark:text-orange-200 border-0 hover:bg-orange-500/30 hover:dark:bg-orange-500/40' }
       case 'low': 
-        return { text: 'Baja', color: 'bg-blue-100 text-blue-700 border-blue-200' }
+        return { text: 'Bajo', color: 'bg-teal-500/30 dark:bg-teal-500/40 text-teal-700 dark:text-teal-200 border-0 hover:bg-teal-500/30 hover:dark:bg-teal-500/40' }
       default: 
-        return { text: 'Normal', color: 'bg-gray-100 text-gray-700 border-gray-200' }
+        return { text: 'Normal', color: 'bg-gray-500/30 dark:bg-gray-500/40 text-gray-700 dark:text-gray-200 border-0 hover:bg-gray-500/30 hover:dark:bg-gray-500/40' }
     }
   }
 
-  // Lógica de estado de fecha
-  const getDateStatus = () => {
-    if (!task.dueDate) return null
-    
-    const due = new Date(task.dueDate)
-    const dueLocal = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-    
-    if (task.status === 'done') {
-        return { 
-          text: formatDate(dueLocal), 
-          color: "bg-emerald-100 text-emerald-700 border-emerald-200"
+  // Badge de estado - Mejor contraste de colores sin hover
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'in_progress': 
+        return { text: 'En curso', color: 'bg-blue-500/30 dark:bg-blue-500/40 text-blue-700 dark:text-blue-200 border-0 hover:bg-blue-500/30 hover:dark:bg-blue-500/40' }
+      case 'done': 
+        return { text: 'Completado', color: 'bg-green-500/30 dark:bg-green-500/40 text-green-700 dark:text-green-200 border-0 hover:bg-green-500/30 hover:dark:bg-green-500/40' }
+      case 'todo':
+        // Mostrar "En riesgo" o "Con retraso" si está atrasada
+        if (task.dueDate) {
+          const due = new Date(task.dueDate)
+          if (isPast(due) && !isToday(due)) {
+            return { text: 'Con retraso', color: 'bg-red-500/30 dark:bg-red-500/40 text-red-700 dark:text-red-200 border-0 hover:bg-red-500/30 hover:dark:bg-red-500/40' }
+          }
         }
-    }
-
-    if (isPast(dueLocal) && !isToday(dueLocal)) {
-        return { 
-          text: "Atrasada", 
-          color: "bg-red-100 text-red-700 border-red-200"
-        }
-    }
-    if (isToday(dueLocal)) {
-        return { 
-          text: "Hoy", 
-          color: "bg-amber-100 text-amber-700 border-amber-200"
-        }
-    }
-    if (isTomorrow(dueLocal)) {
-        return { 
-          text: "Mañana", 
-          color: "bg-blue-100 text-blue-700 border-blue-200"
-        }
-    }
-    
-    return { 
-      text: "A tiempo", 
-      color: "bg-teal-100 text-teal-700 border-teal-200"
+        return { text: 'Por hacer', color: 'bg-gray-500/30 dark:bg-gray-500/40 text-gray-700 dark:text-gray-200 border-0 hover:bg-gray-500/30 hover:dark:bg-gray-500/40' }
+      default:
+        return { text: 'Por hacer', color: 'bg-gray-500/30 dark:bg-gray-500/40 text-gray-700 dark:text-gray-200 border-0 hover:bg-gray-500/30 hover:dark:bg-gray-500/40' }
     }
   }
 
-  const dateStatus = getDateStatus()
-  const priorityBadge = getPriorityBadge(task.priority)
+  const priorityBadge = getPriorityBadge(task.priority || 'low')
+  const statusBadge = getStatusBadge(task.status)
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -135,126 +114,190 @@ export function TaskCard({ task, onEdit, onDelete, onDragStart, onStatusToggle }
       draggable
       onDragStart={(e) => onDragStart(e, task)}
       onClick={() => onEdit(task)}
-      className="shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer bg-card group mb-3 border"
+      className="shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer bg-card group border hover:-translate-y-0.5 active:scale-[0.98]"
     >
       <CardContent className="p-4">
         <div className="flex gap-3">
-          {/* Radio/Checkbox Button */}
+          {/* Checkbox a la izquierda */}
           <button
             onClick={(e) => {
-              e.stopPropagation() // Evitar que se abra el panel al hacer clic en el botón
+              e.stopPropagation()
               handleToggle(e)
             }}
             className={cn(
               "mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
               task.status === 'done' 
                 ? "bg-emerald-500 border-emerald-500" 
-                : "border-gray-300 hover:border-gray-400"
+                : "border-gray-400 hover:border-gray-300"
             )}
           >
             {task.status === 'done' && (
-              <CheckCircle2 className="w-3 h-3 text-white" strokeWidth={3} />
+              <CheckCircle2 className="w-3 h-3 text-white" strokeWidth={2.5} />
             )}
           </button>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
+          {/* Contenido principal */}
+          <div className="flex-1 min-w-0 space-y-2">
             {/* Título */}
             <h4 
               className={cn(
-                "text-sm font-semibold mb-2",
+                "text-sm font-medium leading-snug",
                 task.status === 'done' && "line-through text-muted-foreground"
               )}
             >
               {task.title}
             </h4>
 
-            {/* Badges */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Badge variant="outline" className={cn("text-xs px-2 py-0.5 font-medium border", priorityBadge.color)}>
-                {priorityBadge.text}
-              </Badge>
-              
+            {/* Badges de Prioridad y Estado */}
+            <div className="flex flex-wrap gap-2">
               {task.projectId && typeof task.projectId !== 'string' && (
-                <Badge variant="outline" className="text-xs px-2 py-0.5 font-medium bg-blue-50 text-blue-700 border-blue-200">
+                <Badge className="text-xs px-2 py-0.5 font-normal bg-blue-500/30 dark:bg-blue-500/40 text-blue-700 dark:text-blue-200 border-0 flex items-center gap-1 hover:!bg-blue-500/30 hover:!dark:bg-blue-500/40">
+                  <FolderKanban className="h-2.5 w-2.5" />
                   {task.projectId.name}
                 </Badge>
               )}
-
-              {dateStatus && (
-                <Badge variant="outline" className={cn("text-xs px-2 py-0.5 font-medium border", dateStatus.color)}>
-                  {dateStatus.text}
-                </Badge>
-              )}
+              <Badge className={cn("text-xs px-2 py-0.5 font-normal pointer-events-none", priorityBadge.color)}>
+                {priorityBadge.text}
+              </Badge>
+              <Badge className={cn("text-xs px-2 py-0.5 font-normal pointer-events-none", statusBadge.color)}>
+                {statusBadge.text}
+              </Badge>
             </div>
 
-            {/* Footer: Fecha y Adjuntos */}
+            {/* Archivos adjuntos y tiempo estimado */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {task.dueDate && (
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>
-                    {(() => {
-                      const due = new Date(task.dueDate)
-                      const dueLocal = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-                      if (isToday(dueLocal)) return "Hoy"
-                      if (isTomorrow(dueLocal)) return "Mañana"
-                      return formatDate(dueLocal)
-                    })()}
-                  </span>
-                </div>
-              )}
-
-              {task.estimatedTime && (
-                <div className="flex items-center gap-1" title="Tiempo estimado">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{formatTime(task.estimatedTime)}</span>
-                </div>
-              )}
-
               {task.attachments && task.attachments.length > 0 && (
                 <div className="flex items-center gap-1">
-                  <Paperclip className="h-3.5 w-3.5" />
+                  <Paperclip className="h-3 w-3 flex-shrink-0" />
                   <span>{task.attachments.length}</span>
+                </div>
+              )}
+              {task.estimatedTime && (
+                <div className="flex items-center gap-1" title="Tiempo estimado">
+                  <Clock className="h-3 w-3 flex-shrink-0" />
+                  <span>{formatTime(task.estimatedTime)}</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Avatar y Menú */}
+          {/* Avatar y Fecha a la derecha */}
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()} // Evitar que se abra el panel al hacer clic en el menú
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(task)}>
-                  <Edit className="mr-2 h-3.5 w-3.5" /> Editar
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(task)}>
-                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
+            {/* Avatar */}
             {task.assignedTo ? (
-              <Avatar className="h-7 w-7 border-2 border-background">
-                <AvatarImage src={task.assignedTo.avatar} />
-                <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-semibold">
-                  {task.assignedTo.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="cursor-pointer"
+                  >
+                    <Avatar className="h-8 w-8 border-2 border-background hover:ring-2 hover:ring-primary transition-all">
+                      {task.assignedTo?.avatar && task.assignedTo.avatar.trim() !== "" ? (
+                        <AvatarImage 
+                          src={task.assignedTo.avatar} 
+                          alt={task.assignedTo?.name || 'Usuario'} 
+                        />
+                      ) : null}
+                      <AvatarFallback className="text-xs bg-blue-500 text-white font-semibold">
+                        {(() => {
+                          const name = task.assignedTo?.name;
+                          return (name && typeof name === 'string' ? name : 'U').slice(0, 2).toUpperCase();
+                        })()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Asignar a</DropdownMenuLabel>
+                  {onQuickAssign ? (
+                    <>
+                      <DropdownMenuItem onClick={() => onQuickAssign(task._id, null)}>
+                        <UserIcon className="mr-2 h-3.5 w-3.5" />
+                        Sin asignar
+                      </DropdownMenuItem>
+                      {owner && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => onQuickAssign(task._id, owner._id)}
+                          >
+                            <Avatar className="h-4 w-4 mr-2">
+                              {owner.avatar && owner.avatar.trim() !== "" ? (
+                                <AvatarImage src={owner.avatar} alt={owner.name} />
+                              ) : null}
+                              <AvatarFallback className="text-[8px]">
+                                {owner.name?.slice(0, 2).toUpperCase() || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            {owner.name} (Owner)
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {availableMembers.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          {availableMembers.map((member) => {
+                            const userData = typeof member.userId === 'object' ? member.userId : null
+                            if (!userData) return null
+                            if (owner && owner._id === userData._id) return null
+                            return (
+                              <DropdownMenuItem
+                                key={userData._id}
+                                onClick={() => onQuickAssign(task._id, userData._id)}
+                              >
+                                <Avatar className="h-4 w-4 mr-2">
+                                  {userData.avatar && userData.avatar.trim() !== "" ? (
+                                    <AvatarImage src={userData.avatar} alt={userData.name} />
+                                  ) : null}
+                                  <AvatarFallback className="text-[8px]">
+                                    {userData.name?.slice(0, 2).toUpperCase() || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {userData.name}
+                              </DropdownMenuItem>
+                            )
+                          })}
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <DropdownMenuItem onClick={() => onEdit(task)}>
+                      <Edit className="mr-2 h-3.5 w-3.5" />
+                      Asignar desde detalles...
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <div className="h-7 w-7 rounded-full bg-muted/40 flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
-                <UserIcon className="h-3.5 w-3.5 text-muted-foreground/40" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (onQuickAssign && availableMembers.length > 0) {
+                    // Asignar al primer miembro disponible o abrir dropdown
+                    onEdit(task)
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                <div className="h-8 w-8 rounded-full bg-muted/40 flex items-center justify-center border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/60 transition-colors">
+                  <UserIcon className="h-4 w-4 text-muted-foreground/50" />
+                </div>
+              </button>
+            )}
+
+            {/* Fecha debajo del avatar */}
+            {task.dueDate && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3 flex-shrink-0" />
+                <span>
+                  {(() => {
+                    const due = new Date(task.dueDate)
+                    const dueLocal = new Date(due.getFullYear(), due.getMonth(), due.getDate())
+                    if (isToday(dueLocal)) return "Hoy"
+                    if (isTomorrow(dueLocal)) return "Mañana"
+                    return formatDate(dueLocal)
+                  })()}
+                </span>
               </div>
             )}
           </div>

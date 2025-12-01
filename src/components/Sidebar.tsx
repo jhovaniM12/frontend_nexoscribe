@@ -1,6 +1,7 @@
 'use client'
 
 import { NavLink } from "@/components/NavLink"
+import { useAuth } from "@/context/auth-context"
 import { 
   Home,
   FileText, 
@@ -12,7 +13,8 @@ import {
   ChevronsUpDown,
   Building,
   Plus,
-  Calendar
+  ShieldAlert,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -28,6 +30,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
+import { organizationApi } from "@/lib/api"
 
 interface SidebarProps {
   collapsed: boolean
@@ -46,8 +60,50 @@ const navItems = [
 ]
 
 export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose }: SidebarProps) {
+  const { user } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
   const { organizations, currentOrganization, isLoading, setOrganization } = useOrganization()
+
+  const isSuperAdmin = user?.systemRole === 'superadmin';
+
+  // Definir items según rol
+  const items = isSuperAdmin ? [
+    { href: "/admin", icon: ShieldAlert, label: "Panel Admin" },
+  ] : navItems;
+
+  // Estado para diálogo de nueva organización
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [newOrgName, setNewOrgName] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
+
+  const handleCreateOrg = async () => {
+    // Validar que el usuario puede crear organizaciones
+    if (user?.accountType !== 'business') {
+      toast.error("Solo los usuarios empresariales pueden crear organizaciones")
+      return
+    }
+
+    if (!newOrgName.trim()) {
+      toast.error("El nombre es requerido")
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      await organizationApi.create({ name: newOrgName })
+      toast.success("Organización creada")
+      setIsCreateOpen(false)
+      setNewOrgName("")
+      
+      // Recargar organizaciones y cambiar a la nueva
+      // Esto fuerza un refresh completo para simplificar el estado
+      window.location.reload()
+    } catch {
+      toast.error("Error al crear la organización")
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   useEffect(() => {
     const checkMobile = () => {
@@ -68,7 +124,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 z-50",
+        "fixed left-0 top-0 h-screen bg-sidebar/95 backdrop-blur-md border-r border-sidebar-border/50 transition-all duration-300 ease-in-out z-50 shadow-lg",
         // Desktop: tamaño según collapsed
         collapsed ? "lg:w-16" : "lg:w-64",
         // Mobile: siempre ancho completo cuando está abierto, oculto cuando está cerrado
@@ -147,11 +203,21 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
                       )}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="gap-2 text-muted-foreground">
-                    <Plus className="h-4 w-4" />
-                    Crear nueva organización
-                  </DropdownMenuItem>
+                  {user?.accountType === 'business' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        className="gap-2 text-muted-foreground cursor-pointer"
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          setIsCreateOpen(true)
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Crear nueva organización
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )
@@ -186,26 +252,64 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
+          {items.map((item) => (
             <NavLink
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-smooth",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                 "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "hover:shadow-sm active:scale-[0.98]",
                 collapsed && !isMobile && "lg:justify-center"
               )}
-              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-sm"
               onClick={handleNavClick}
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
-              <span className={cn("text-sm whitespace-nowrap", collapsed && !isMobile && "lg:hidden")}>
+              <span className={cn("text-sm whitespace-nowrap font-medium", collapsed && !isMobile && "lg:hidden")}>
                 {item.label}
               </span>
             </NavLink>
           ))}
         </nav>
       </div>
+
+      {/* Diálogo para crear organización */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Organización</DialogTitle>
+            <DialogDescription>
+              Crea un espacio de trabajo para tu equipo o empresa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-2">
+              <Label htmlFor="orgName">Nombre de la Organización</Label>
+              <Input
+                id="orgName"
+                placeholder="Ej: Acme Corp"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateOrg()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateOrg} disabled={isCreating || !newOrgName.trim()}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Organización"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   )
 }

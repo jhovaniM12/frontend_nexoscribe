@@ -10,6 +10,7 @@ import { projectsApi, type Project } from "@/lib/api"
 import { ProjectCard } from "@/components/projects/ProjectCard"
 import { ProjectDialog } from "@/components/projects/ProjectDialog"
 import { useOrganization } from "@/context/organization-context"
+import { AuthGuard } from "@/components/AuthGuard"
 
 export default function ProjectsPage() {
   const { currentOrganization } = useOrganization()
@@ -117,80 +118,81 @@ export default function ProjectsPage() {
   )
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <FolderKanban className="h-8 w-8 text-primary" />
-              Proyectos
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gestiona tus proyectos y sus estados
-            </p>
+    <AuthGuard>
+      <Layout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <FolderKanban className="h-8 w-8 text-primary" />
+                Proyectos
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Gestiona tus proyectos y sus estados
+              </p>
+            </div>
+            <Button onClick={handleCreate} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Nuevo Proyecto
+            </Button>
           </div>
-          <Button onClick={handleCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nuevo Proyecto
-          </Button>
-        </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar proyectos..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar proyectos..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Projects Grid */}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="text-center py-12 border rounded-lg bg-muted/10">
+              <p className="text-muted-foreground">
+                {searchQuery ? "No se encontraron proyectos" : "No hay proyectos creados aún"}
+              </p>
+              {!searchQuery && (
+                <Button variant="link" onClick={handleCreate} className="mt-2">
+                  Crear el primero
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {filteredProjects.map((project) => (
+                <ProjectCard
+                  key={project._id}
+                  project={project}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+
+          <ProjectDialog
+            open={dialogOpen}
+            mode={dialogMode}
+            name={projectName}
+            description={projectDesc}
+            status={projectStatus}
+            isSubmitting={isSubmitting}
+            onOpenChange={setDialogOpen}
+            onNameChange={setProjectName}
+            onDescriptionChange={setProjectDesc}
+            onStatusChange={setProjectStatus}
+            onSubmit={handleSubmit}
           />
         </div>
-
-        {/* Projects Grid */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="text-center py-12 border rounded-lg bg-muted/10">
-            <p className="text-muted-foreground">
-              {searchQuery ? "No se encontraron proyectos" : "No hay proyectos creados aún"}
-            </p>
-            {!searchQuery && (
-              <Button variant="link" onClick={handleCreate} className="mt-2">
-                Crear el primero
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project._id}
-                project={project}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
-
-        <ProjectDialog
-          open={dialogOpen}
-          mode={dialogMode}
-          project={selectedProject}
-          name={projectName}
-          description={projectDesc}
-          status={projectStatus}
-          isSubmitting={isSubmitting}
-          onOpenChange={setDialogOpen}
-          onNameChange={setProjectName}
-          onDescriptionChange={setProjectDesc}
-          onStatusChange={setProjectStatus}
-          onSubmit={handleSubmit}
-        />
-      </div>
-    </Layout>
+      </Layout>
+    </AuthGuard>
   )
 }

@@ -25,6 +25,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
+import { AuthGuard } from "@/components/AuthGuard"
 
 // Componente Skeleton para la página de detalle
 function NoteDetailSkeleton() {
@@ -201,210 +202,217 @@ export default function NoteDetail() {
   }
 
   if (loading) {
-    return <NoteDetailSkeleton />
+    return (
+        <AuthGuard>
+            <NoteDetailSkeleton />
+        </AuthGuard>
+    )
   }
 
   if (!note) {
     return (
-      <Layout>
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">Nota no encontrada</p>
-          <Button asChild>
-            <Link href="/notes">Volver a notas</Link>
-          </Button>
-        </div>
-      </Layout>
+      <AuthGuard>
+        <Layout>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground mb-4">Nota no encontrada</p>
+            <Button asChild>
+              <Link href="/notes">Volver a notas</Link>
+            </Button>
+          </div>
+        </Layout>
+      </AuthGuard>
     )
   }
 
   return (
-    <Layout>
-      <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/notes">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div className="flex-1 min-w-0">
-            {isEditing ? (
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="text-xl sm:text-2xl font-bold"
-              />
-            ) : (
-              <h1 className="text-2xl sm:text-3xl font-bold truncate">{title}</h1>
-            )}
+    <AuthGuard>
+      <Layout>
+        <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/notes">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div className="flex-1 min-w-0">
+              {isEditing ? (
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="text-xl sm:text-2xl font-bold"
+                />
+              ) : (
+                <h1 className="text-2xl sm:text-3xl font-bold truncate">{title}</h1>
+              )}
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {isEditing ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsEditing(false)
+                      setTitle(note.title)
+                      setContent(note.content)
+                      setTags(note.tags?.join(", ") || "")
+                    }}
+                    disabled={saving}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSave} className="gap-2" disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Guardar
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
+                    <Edit className="h-4 w-4" />
+                    Editar
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleDelete} 
+                    className="gap-2"
+                    disabled={deleting}
+                  >
+                    {deleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Eliminando...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" />
+                        Eliminar
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {isEditing ? (
-              <>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditing(false)
-                    setTitle(note.title)
-                    setContent(note.content)
-                    setTags(note.tags?.join(", ") || "")
-                  }}
-                  disabled={saving}
-                >
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave} className="gap-2" disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Guardar
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                  <Edit className="h-4 w-4" />
-                  Editar
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDelete} 
-                  className="gap-2"
-                  disabled={deleting}
-                >
-                  {deleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Eliminando...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
 
-        {/* Note Content */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3 flex-wrap">
-                {note.tags && note.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {note.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1">
-                        <TagIcon className="h-3 w-3" />
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>Creada {new Date(note.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>Actualizada {new Date(note.updatedAt).toLocaleDateString()}</span>
+          {/* Note Content */}
+          <Card className="shadow-card">
+            <CardHeader>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {note.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="gap-1">
+                          <TagIcon className="h-3 w-3" />
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>Creada {new Date(note.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span>Actualizada {new Date(note.updatedAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </CardHeader>
-          <Separator />
-          <CardContent className="pt-6">
-            {/* Content */}
-            {isEditing ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="content">Contenido</Label>
-                  {note && content !== undefined ? (
-                    <LexicalEditor
-                      key={`editor-${id}-${isEditing ? 'edit' : 'view'}`}
-                      initialValue={content}
-                      onChange={(html) => setContent(html)}
-                      placeholder="Escribe tu nota aquí..."
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-6">
+              {/* Content */}
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="content">Contenido</Label>
+                    {note && content !== undefined ? (
+                      <LexicalEditor
+                        key={`editor-${id}-${isEditing ? 'edit' : 'view'}`}
+                        initialValue={content}
+                        onChange={(html) => setContent(html)}
+                        placeholder="Escribe tu nota aquí..."
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center min-h-[200px]">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="folder">Carpeta (opcional)</Label>
+                    <Select
+                      value={selectedFolderId || "none"}
+                      onValueChange={(value) => setSelectedFolderId(value === "none" ? null : value)}
+                      disabled={loadingFolders}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una carpeta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin carpeta</SelectItem>
+                        {folders.map((folder) => (
+                          <SelectItem key={folder._id} value={folder._id}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="h-3 w-3 rounded"
+                                style={{ backgroundColor: folder.color || '#3B82F6' }}
+                              />
+                              <span>{folder.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tags">Tags (separados por comas)</Label>
+                    <Input
+                      id="tags"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      placeholder="reunión, proyecto, importante"
                     />
-                  ) : (
-                    <div className="flex items-center justify-center min-h-[200px]">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Renderizar contenido HTML */}
+                  <div 
+                    className="prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: content }}
+                  />
+                  
+                  {/* Tags */}
+                  {note.tags && note.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-4 border-t">
+                      {note.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="gap-1">
+                          <TagIcon className="h-3 w-3" />
+                          {tag}
+                        </Badge>
+                      ))}
                     </div>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="folder">Carpeta (opcional)</Label>
-                  <Select
-                    value={selectedFolderId || "none"}
-                    onValueChange={(value) => setSelectedFolderId(value === "none" ? null : value)}
-                    disabled={loadingFolders}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una carpeta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin carpeta</SelectItem>
-                      {folders.map((folder) => (
-                        <SelectItem key={folder._id} value={folder._id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="h-3 w-3 rounded"
-                              style={{ backgroundColor: folder.color || '#3B82F6' }}
-                            />
-                            <span>{folder.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tags">Tags (separados por comas)</Label>
-                  <Input
-                    id="tags"
-                    value={tags}
-                    onChange={(e) => setTags(e.target.value)}
-                    placeholder="reunión, proyecto, importante"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Renderizar contenido HTML */}
-                <div 
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: content }}
-                />
-                
-                {/* Tags */}
-                {note.tags && note.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-4 border-t">
-                    {note.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1">
-                        <TagIcon className="h-3 w-3" />
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </Layout>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    </AuthGuard>
   )
 }
-

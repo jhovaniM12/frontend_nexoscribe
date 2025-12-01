@@ -6,7 +6,7 @@
  *
  */
 
-export default {
+const theme = {
     code: 'editor-code',
     heading: {
       h1: 'editor-heading-h1',
@@ -39,4 +39,6 @@ export default {
       underlineStrikethrough: 'editor-text-underlineStrikethrough',
     },
   };
+
+export default theme;
   

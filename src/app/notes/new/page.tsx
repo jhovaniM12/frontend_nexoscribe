@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import LexicalEditorComponent from "@/components/editor/LexicalEditor"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { notesApi, foldersApi, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -44,14 +43,14 @@ function NewNoteContent() {
       }
     }
     loadFolders()
-  }, [])
+  }, [folderIdFromUrl, selectedFolderId])
 
   // Sincronizar selectedFolderId con folderIdFromUrl cuando cambia
   useEffect(() => {
     if (folderIdFromUrl !== selectedFolderId) {
       setSelectedFolderId(folderIdFromUrl || null)
     }
-  }, [folderIdFromUrl])
+  }, [folderIdFromUrl, selectedFolderId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -221,23 +220,15 @@ function NewNoteContent() {
 }
 
 export default function NewNote() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
+  return (
+    <Suspense fallback={
       <Layout>
-        <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <h1 className="text-3xl font-bold">Nueva Nota</h1>
-          </div>
+        <div className="flex items-center justify-center h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </Layout>
-    )
-  }
-
-  return <NewNoteContent />
+    }>
+      <NewNoteContent />
+    </Suspense>
+  )
 }

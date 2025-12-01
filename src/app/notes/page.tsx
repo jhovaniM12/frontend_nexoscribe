@@ -4,7 +4,7 @@ import { Layout } from "@/components/Layout"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Grid3x3, List } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 import { filterNotesBySearch } from "@/utils/noteUtils"
@@ -13,6 +13,7 @@ import { FolderDialog } from "@/components/notes/FolderDialog"
 import { NotesHeader } from "@/components/notes/NotesHeader"
 import { NotesGrid } from "@/components/notes/NotesGrid"
 import { NotesList } from "@/components/notes/NotesList"
+import { AuthGuard } from "@/components/AuthGuard"
 
 const FOLDER_COLORS = [
   { name: 'Azul', value: '#3B82F6' },
@@ -204,101 +205,99 @@ function NotesContent() {
     : "Gestiona y organiza tus ideas"
 
   return (
-    <Layout>
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)]">
-        {/* Sidebar de Carpetas */}
-        <FoldersSidebar
-          folders={folders}
-          notes={notes}
-          loading={loadingFolders}
-          selectedFolderId={selectedFolderId}
-          onFolderClick={handleFolderClick}
-          onCreateFolder={handleCreateFolder}
-          onEditFolder={handleEditFolder}
-          onDeleteFolder={handleDeleteFolder}
-        />
-
-        {/* Contenido principal */}
-        <div className="flex-1 space-y-4 sm:space-y-6 overflow-y-auto min-w-0">
-          <NotesHeader
-            title={currentFolderName}
-            subtitle={currentSubtitle}
-            searchQuery={searchQuery}
+    <AuthGuard>
+      <Layout>
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)]">
+          {/* Sidebar de Carpetas */}
+          <FoldersSidebar
+            folders={folders}
+            notes={notes}
+            loading={loadingFolders}
             selectedFolderId={selectedFolderId}
-            onSearchChange={setSearchQuery}
+            onFolderClick={handleFolderClick}
+            onCreateFolder={handleCreateFolder}
+            onEditFolder={handleEditFolder}
+            onDeleteFolder={handleDeleteFolder}
           />
 
-          {/* Tabs for Grid/List View */}
-          <Tabs defaultValue="grid" className="w-full">
-            <TabsList>
-              <TabsTrigger value="grid" className="gap-2">
-                <Grid3x3 className="h-4 w-4" />
-                Tablero
-              </TabsTrigger>
-              <TabsTrigger value="list" className="gap-2">
-                <List className="h-4 w-4" />
-                Lista
-              </TabsTrigger>
-            </TabsList>
+          {/* Contenido principal */}
+          <div className="flex-1 space-y-4 sm:space-y-6 overflow-y-auto min-w-0">
+            <NotesHeader
+              title={currentFolderName}
+              subtitle={currentSubtitle}
+              searchQuery={searchQuery}
+              selectedFolderId={selectedFolderId}
+              onSearchChange={setSearchQuery}
+            />
 
-            {/* Grid View */}
-            <TabsContent value="grid" className="mt-6">
-              <NotesGrid
-                notes={filteredNotes}
-                loading={loading}
-                searchQuery={searchQuery}
-                selectedFolderId={selectedFolderId}
-                onDelete={handleDelete}
-              />
-            </TabsContent>
+            {/* Tabs for Grid/List View */}
+            <Tabs defaultValue="grid" className="w-full">
+              <TabsList>
+                <TabsTrigger value="grid" className="gap-2">
+                  <Grid3x3 className="h-4 w-4" />
+                  Tablero
+                </TabsTrigger>
+                <TabsTrigger value="list" className="gap-2">
+                  <List className="h-4 w-4" />
+                  Lista
+                </TabsTrigger>
+              </TabsList>
 
-            {/* List View */}
-            <TabsContent value="list" className="mt-6">
-              <NotesList
-                notes={filteredNotes}
-                loading={loading}
-                searchQuery={searchQuery}
-                selectedFolderId={selectedFolderId}
-                onDelete={handleDelete}
-              />
-            </TabsContent>
-          </Tabs>
+              {/* Grid View */}
+              <TabsContent value="grid" className="mt-6">
+                <NotesGrid
+                  notes={filteredNotes}
+                  loading={loading}
+                  searchQuery={searchQuery}
+                  selectedFolderId={selectedFolderId}
+                  onDelete={handleDelete}
+                />
+              </TabsContent>
+
+              {/* List View */}
+              <TabsContent value="list" className="mt-6">
+                <NotesList
+                  notes={filteredNotes}
+                  loading={loading}
+                  searchQuery={searchQuery}
+                  selectedFolderId={selectedFolderId}
+                  onDelete={handleDelete}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
-      </div>
 
-      {/* Diálogo para crear/editar carpeta */}
-      <FolderDialog
-        open={folderDialogOpen}
-        mode={folderDialogMode}
-        folder={selectedFolder}
-        folderName={folderName}
-        folderColor={folderColor}
-        isSubmitting={isSubmittingFolder}
-        onOpenChange={setFolderDialogOpen}
-        onNameChange={setFolderName}
-        onColorChange={setFolderColor}
-        onSubmit={handleSubmitFolder}
-      />
-    </Layout>
+        {/* Diálogo para crear/editar carpeta */}
+        <FolderDialog
+          open={folderDialogOpen}
+          mode={folderDialogMode}
+          folder={selectedFolder}
+          folderName={folderName}
+          folderColor={folderColor}
+          isSubmitting={isSubmittingFolder}
+          onOpenChange={setFolderDialogOpen}
+          onNameChange={setFolderName}
+          onColorChange={setFolderColor}
+          onSubmit={handleSubmitFolder}
+        />
+      </Layout>
+    </AuthGuard>
   )
 }
 
 export default function Notes() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <Layout>
-        <div className="space-y-4 sm:space-y-6">
-          <h1 className="text-3xl font-bold">Notas</h1>
-        </div>
-      </Layout>
-    )
-  }
-
-  return <NotesContent />
+  return (
+    <Suspense fallback={
+      <AuthGuard>
+        <Layout>
+          <div className="flex items-center justify-center h-[50vh]">
+            <div className="text-muted-foreground">Cargando...</div>
+          </div>
+        </Layout>
+      </AuthGuard>
+    }>
+      <NotesContent />
+    </Suspense>
+  )
 }

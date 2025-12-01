@@ -33,7 +33,7 @@ export function Layout({ children }: LayoutProps) {
       
       <div
         className={cn(
-          "transition-all duration-300 min-h-screen",
+          "transition-all duration-300 ease-in-out min-h-screen bg-background",
           // Desktop: siempre tiene margen según el estado del sidebar
           sidebarCollapsed ? "lg:ml-16" : "lg:ml-64",
           // Mobile: sin margen porque el sidebar es overlay
@@ -42,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <Header onMenuClick={() => setSidebarMobileOpen(true)} />
         
-        <main className="p-3 sm:p-4 md:p-6">
+        <main className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
           {children}
         </main>
       </div>

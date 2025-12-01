@@ -37,7 +37,16 @@ export const api = {
         // Si JSON parsing falla, usar mensaje por defecto
       }
       
-      throw new Error(errorMessage)
+      // Crear error con más información
+      const error = new Error(errorMessage) as Error & {
+        status?: number
+        statusText?: string
+        isExpected?: boolean
+      }
+      error.status = response.status
+      error.statusText = response.statusText
+      error.isExpected = response.status === 404 // Marcar errores 404 como esperados
+      throw error
     }
 
     return response.json()
@@ -51,6 +60,13 @@ export const api = {
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    })
+  },
+
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
     })
   },
@@ -120,6 +136,22 @@ export interface Organization {
 export const organizationApi = {
   getUserOrganizations: () => 
     api.get<{ organizations: Organization[] }>('/api/organization/user-organizations'),
+  
+  create: (data: { name: string, type?: 'personal' | 'business' }) => 
+    api.post<{ message: string; organization: Organization }>('/api/organization/create', data),
+  
+  inviteMember: (organizationId: string, data: { email: string, role?: 'admin' | 'editor' | 'viewer' }) =>
+    api.post<{ message: string; invitation: { _id: string; email: string; role: string; token: string; status: string } }>(`/api/organization/${organizationId}/invite`, data),
+  
+  acceptInvitation: (token: string) =>
+    api.get<{ message: string; organizationId: string; organizationName: string }>(`/api/organization/invite/accept/${token}`),
+  
+  getMembers: (organizationId: string) =>
+    api.get<{ 
+      members: Array<{ userId: { _id: string; name: string; email: string; avatar?: string } | string; role: string }>; 
+      owner: { _id: string; name: string; email: string; avatar?: string } | null; 
+      pendingInvitations: Array<{ _id: string; email: string; role: string; invitedBy: { _id: string; name: string } }> 
+    }>(`/api/organization/${organizationId}/members`),
 }
 
 // Tipos de autenticación
@@ -132,6 +164,8 @@ export interface RegisterRequest {
   name: string
   email: string
   password: string
+  accountType: 'individual' | 'business'
+  companyName?: string
 }
 
 export interface LoginResponse {
@@ -141,6 +175,7 @@ export interface LoginResponse {
     name: string
     email: string
     role: string
+    systemRole?: string
     isActive: boolean
     avatar?: string
   }
@@ -283,7 +318,55 @@ export interface CreateProjectRequest {
   status?: 'active' | 'archived' | 'completed'
 }
 
-// API de Proyectos
+// Tipos de Admin
+export interface AdminUser {
+  _id: string
+  name: string
+  email: string
+  systemRole: string
+  isActive: boolean
+  createdAt: string
+  avatar?: string
+}
+
+export interface AdminOrganization {
+  _id: string
+  name: string
+  type: string
+  members: Array<{ userId: string | { name: string, email: string }; role: string }>
+  createdBy: {
+    _id: string
+    name: string
+    email: string
+  }
+  createdAt: string
+}
+
+// API de Admin
+export const adminApi = {
+  getGlobalStats: () => 
+    api.get<{ stats: { totalUsers: number; totalOrganizations: number; totalNotes: number; totalProjects: number; userGrowth: number; orgGrowth: number } }>('/api/admin/stats'),
+  
+  getAllOrganizations: (page = 1, limit = 10) => 
+    api.get<{ organizations: AdminOrganization[], total: number, pages: number }>
+    (`/api/admin/organizations?page=${page}&limit=${limit}`),
+  
+  getOrganizationDetail: (id: string) => 
+    api.get<{ organization: AdminOrganization, stats: { totalMembers: number; totalTasks: number; totalProjects: number; totalNotes: number } }>(`/api/admin/organizations/${id}`),
+
+  getAllUsers: (page = 1, limit = 10) => 
+    api.get<{ users: AdminUser[], total: number, pages: number }>
+    (`/api/admin/users?page=${page}&limit=${limit}`),
+  
+  updateUserStatus: (id: string, isActive: boolean) => 
+    api.request<{ message: string, user: AdminUser }>(`/api/admin/users/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ isActive })
+    }),
+  
+  deleteUser: (id: string) => 
+    api.delete<{ message: string }>(`/api/admin/users/${id}`),
+}
 export const projectsApi = {
   getAll: () => 
     api.get<{ projects: Project[] }>('/api/project/org-projects'),
@@ -323,13 +406,14 @@ export interface Task {
   } | null
   createdBy: string
   status: 'todo' | 'in_progress' | 'done'
-  priority: 'low' | 'medium' | 'high'
+  priority?: 'low' | 'medium' | 'high'
   dueDate?: string
   estimatedTime?: number // Minutos
   position: number
   isOverdue?: boolean
   overdueAt?: string
   attachments?: Attachment[]
+  tags?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -344,13 +428,18 @@ export interface CreateTaskRequest {
   estimatedTime?: number
   assignedTo?: string
   attachments?: Attachment[]
+  tags?: string[]
 }
 
 // API de Tareas
 export const tasksApi = {
-  getAll: (projectId?: string) => {
-    const params = projectId ? `?projectId=${projectId}` : '';
-    return api.get<{ tasks: Task[] }>(`/api/task/org-tasks${params}`);
+  getAll: (projectId?: string, assignedTo?: string, search?: string) => {
+    const params = new URLSearchParams()
+    if (projectId) params.append('projectId', projectId)
+    if (assignedTo) params.append('assignedTo', assignedTo)
+    if (search) params.append('search', search)
+    const queryString = params.toString()
+    return api.get<{ tasks: Task[] }>(`/api/task/org-tasks${queryString ? `?${queryString}` : ''}`);
   },
   
   create: (data: CreateTaskRequest) => 
@@ -365,6 +454,41 @@ export const tasksApi = {
   delete: (id: string) => 
     api.delete<{ message: string }>(`/api/task/delete-task/${id}`),
 }
+
+// Tipos de Comentarios
+export interface Comment {
+  _id: string
+  taskId: string
+  userId: {
+    _id: string
+    name: string
+    email: string
+    avatar?: string
+  }
+  content: string
+  editedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCommentRequest {
+  content: string
+}
+
+// API de Comentarios
+export const commentsApi = {
+  getAll: (taskId: string) =>
+    api.get<{ comments: Comment[] }>(`/api/task/${taskId}/comments`),
+  
+  create: (taskId: string, data: CreateCommentRequest) =>
+    api.post<{ message: string; comment: Comment }>(`/api/task/${taskId}/comments`, data),
+  
+  update: (taskId: string, commentId: string, data: CreateCommentRequest) =>
+    api.patch<{ message: string; comment: Comment }>(`/api/task/${taskId}/comments/${commentId}`, data),
+  
+  delete: (taskId: string, commentId: string) =>
+    api.delete<{ message: string }>(`/api/task/${taskId}/comments/${commentId}`),
+}
 // API de Archivos
 export const uploadApi = {
   uploadAvatar: (file: File) => 
@@ -377,11 +501,17 @@ export const uploadApi = {
 }
 
 // Tipos de Pizarra
+export interface WhiteboardContent {
+  version: string
+  objects: unknown[]
+  [key: string]: unknown
+}
+
 export interface Whiteboard {
   _id: string
   title: string
   thumbnail?: string
-  content: any
+  content: WhiteboardContent | null
   createdAt: string
   updatedAt: string
   createdBy: {
@@ -392,6 +522,49 @@ export interface Whiteboard {
 }
 
 // API de Pizarras (Whiteboards)
+export interface Notification {
+  _id: string
+  type: 'task_assigned' | 'task_comment' | 'task_mentioned'
+  title: string
+  message: string
+  relatedEntityId: string
+  relatedEntityType: 'task' | 'comment'
+  read: boolean
+  readAt?: string
+  createdAt: string
+}
+
+export interface PushSubscription {
+  endpoint: string
+  keys: {
+    p256dh: string
+    auth: string
+  }
+}
+
+export const notificationApi = {
+  getNotifications: (read?: boolean, limit?: number) => {
+    const params = new URLSearchParams()
+    if (read !== undefined) params.append('read', read.toString())
+    if (limit) params.append('limit', limit.toString())
+    return api.get<{ notifications: Notification[]; unreadCount: number }>(
+      `/api/notifications?${params.toString()}`
+    )
+  },
+  
+  markAsRead: (id: string) =>
+    api.put<{ message: string }>(`/api/notifications/${id}/read`),
+  
+  markAllAsRead: () =>
+    api.put<{ message: string }>('/api/notifications/read-all'),
+  
+  subscribePush: (subscription: PushSubscription) =>
+    api.post<{ message: string }>('/api/notifications/subscribe', subscription),
+  
+  getVapidPublicKey: () =>
+    api.get<{ publicKey: string }>('/api/notifications/vapid-key')
+}
+
 export const whiteboardApi = {
   getAll: () => 
     api.get<{ whiteboards: Whiteboard[] }>('/api/whiteboard'),
@@ -402,7 +575,7 @@ export const whiteboardApi = {
   getById: (id: string) => 
     api.get<{ whiteboard: Whiteboard }>(`/api/whiteboard/${id}`),
   
-  update: (id: string, data: { title?: string, content?: any, thumbnail?: string }) => 
+  update: (id: string, data: { title?: string, content?: WhiteboardContent, thumbnail?: string }) => 
     api.request<{ message: string; whiteboard: Whiteboard }>(`/api/whiteboard/${id}`, { 
         method: 'PUT',
         body: JSON.stringify(data) 

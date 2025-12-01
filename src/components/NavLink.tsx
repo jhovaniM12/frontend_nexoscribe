@@ -13,7 +13,7 @@ interface NavLinkProps extends Omit<ComponentProps<typeof Link>, 'className'> {
 }
 
 export const NavLink = forwardRef<HTMLAnchorElement, NavLinkProps>(
-  ({ className, activeClassName, pendingClassName, href, children, ...props }, ref) => {
+  ({ className, activeClassName, href, children, ...props }, ref) => {
     const pathname = usePathname()
     const isActive = pathname === href
 

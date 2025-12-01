@@ -32,7 +32,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
 
 function Divider() {
   return <div className="divider" />;
@@ -100,7 +99,7 @@ export default function ToolbarPlugin() {
       }),
       editor.registerCommand(
         SELECTION_CHANGE_COMMAND,
-        (_payload, _newEditor) => {
+        () => {
           $updateToolbar();
           return false;
         },
@@ -231,10 +230,6 @@ export default function ToolbarPlugin() {
             style={currentHighlight !== 'transparent' ? {
               backgroundColor: currentHighlight,
             } : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
           >
             <Highlighter className="h-4 w-4" />
           </button>

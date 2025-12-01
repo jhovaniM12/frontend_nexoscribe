@@ -1,8 +1,8 @@
 'use client'
 
-import { Search, Moon, Sun, User, Menu } from "lucide-react"
+import { Moon, Sun, User, Menu, ShieldAlert } from "lucide-react"
+import { NotificationBell } from "@/components/NotificationBell"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,14 +23,15 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps = {}) {
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const { user, logout } = useAuth()
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
 
   // Necesario para evitar problemas de hidratación con el tema
+  // Este setState es necesario y seguro aquí - solo se ejecuta una vez al montar
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Obtener iniciales del nombre del usuario
@@ -44,8 +45,8 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-card sticky top-0 z-30 backdrop-blur-sm bg-card/80">
-      <div className="h-full flex items-center justify-between px-3 sm:px-4 md:px-6 gap-2 sm:gap-4">
+    <header className="h-16 border-b border-border/50 bg-card/95 backdrop-blur-md sticky top-0 z-30 supports-[backdrop-filter]:bg-card/80">
+      <div className="h-full flex items-center justify-between px-4 sm:px-6 md:px-8 gap-3 sm:gap-4">
         {/* Mobile Menu Button */}
         {onMenuClick && (
           <Button
@@ -64,6 +65,9 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Notification Bell */}
+          <NotificationBell />
+
           {/* Theme Toggle */}
           <Button
             variant="ghost"
@@ -123,6 +127,18 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
               
               <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              
+              {/* Acceso al Panel de Administración si es Super Admin */}
+              {(user?.systemRole === 'superadmin') && (
+                <DropdownMenuItem 
+                  onClick={() => router.push('/admin')}
+                  className="font-medium text-primary focus:text-primary cursor-pointer"
+                >
+                  <ShieldAlert className="h-4 w-4 mr-2" />
+                  Panel de Super Admin
+                </DropdownMenuItem>
+              )}
+
               <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <User className="h-4 w-4 mr-2" />
                 Perfil

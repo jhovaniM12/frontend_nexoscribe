@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -14,8 +14,8 @@ import { toast } from "sonner"
 import Image from "next/image"
 import Link from "next/link"
 
-export default function Login() {
-  const router = useRouter()
+function LoginForm() {
+  const searchParams = useSearchParams()
   const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -35,7 +35,8 @@ export default function Login() {
     }
 
     try {
-      await login(email, password)
+      const redirect = searchParams.get('redirect') || undefined
+      await login(email, password, redirect)
       toast.success("Inicio de sesión exitoso")
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error al iniciar sesión"
@@ -185,7 +186,10 @@ export default function Login() {
             </p>
             <p>
               <span className="text-muted-foreground">¿No tienes una cuenta? </span>
-              <Link href="/register" className="text-primary font-semibold hover:underline dark:text-primary-foreground">
+              <Link 
+                href={searchParams.get('redirect') ? `/register?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/register'} 
+                className="text-primary font-semibold hover:underline dark:text-primary-foreground"
+              >
                 Regístrate gratis
               </Link>
             </p>
@@ -193,5 +197,23 @@ export default function Login() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md shadow-elevated">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -1,23 +1,27 @@
 'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AlertCircle, Loader2, Eye, EyeOff, User, Building2 } from "lucide-react"
 import { toast } from "sonner"
 import Image from "next/image"
 import Link from "next/link"
 import { authApi } from "@/lib/api"
 
-export default function Register() {
+function RegisterForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login } = useAuth() // Usamos login para auto-login después del registro
+  const [accountType, setAccountType] = useState<'individual' | 'business'>('individual')
   const [name, setName] = useState("")
+  const [companyName, setCompanyName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -36,6 +40,12 @@ export default function Register() {
       return
     }
 
+    if (accountType === 'business' && !companyName.trim()) {
+      setError("El nombre de la empresa es requerido")
+      setLoading(false)
+      return
+    }
+
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden")
       setLoading(false)
@@ -50,17 +60,24 @@ export default function Register() {
 
     try {
       // 1. Registrar usuario
-      await authApi.register({ name, email, password })
+      await authApi.register({ 
+        name, 
+        email, 
+        password,
+        accountType,
+        companyName: accountType === 'business' ? companyName : undefined
+      })
       toast.success("Cuenta creada exitosamente")
       
       // 2. Iniciar sesión automáticamente
+      const redirect = searchParams.get('redirect') || undefined
       try {
-        await login(email, password)
-        // Login redirigirá a dashboard, pero por seguridad:
-        router.push('/dashboard')
-      } catch (loginError) {
+        await login(email, password, redirect)
+        // El login ya maneja la redirección, no necesitamos router.push aquí
+      } catch {
         toast.error("Cuenta creada, pero falló el inicio de sesión automático. Por favor inicia sesión.")
-        router.push('/login')
+        const redirectParam = redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''
+        router.push(`/login${redirectParam}`)
       }
 
     } catch (err) {
@@ -87,7 +104,7 @@ export default function Register() {
           </div>
           <CardTitle className="text-2xl text-primary dark:text-primary-foreground">Crear cuenta</CardTitle>
           <CardDescription>
-            Únete a NexoScribe para organizar tus proyectos
+            Elige el tipo de cuenta que mejor se adapte a tus necesidades
           </CardDescription>
         </CardHeader>
 
@@ -98,6 +115,45 @@ export default function Register() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
+          {/* Selector de tipo de cuenta */}
+          <Tabs value={accountType} onValueChange={(v) => setAccountType(v as 'individual' | 'business')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="individual" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Usuario Individual
+              </TabsTrigger>
+              <TabsTrigger value="business" className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Empresa
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="individual" className="space-y-2 mt-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Perfecto para probar NexoScribe y gestionar tus proyectos personales
+              </p>
+            </TabsContent>
+            
+            <TabsContent value="business" className="space-y-2 mt-4">
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                Ideal para equipos que necesitan colaborar y gestionar organizaciones
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Nombre de la Empresa</Label>
+                <Input 
+                  id="companyName" 
+                  type="text" 
+                  placeholder="Mi Empresa S.A."
+                  className="bg-muted/50"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  disabled={loading}
+                  required={accountType === 'business'}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <form onSubmit={handleRegister} className="space-y-3">
             <div className="space-y-2">
@@ -191,7 +247,10 @@ export default function Register() {
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">¿Ya tienes una cuenta? </span>
-            <Link href="/login" className="text-primary font-semibold hover:underline dark:text-primary-foreground">
+            <Link 
+              href={searchParams.get('redirect') ? `/login?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/login'} 
+              className="text-primary font-semibold hover:underline dark:text-primary-foreground"
+            >
               Inicia sesión
             </Link>
           </div>
@@ -201,3 +260,20 @@ export default function Register() {
   )
 }
 
+export default function Register() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md shadow-elevated">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
+  )
+}
