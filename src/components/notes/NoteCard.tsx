@@ -16,20 +16,20 @@ interface NoteCardProps {
 
 export function NoteCard({ note, onDelete }: NoteCardProps) {
   return (
-    <Card className="shadow-card hover:shadow-elevated transition-smooth">
+    <Card className="shadow-card hover:shadow-elevated transition-smooth overflow-hidden">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <Link href={`/notes/${note._id}`} className="space-y-1 flex-1">
-            <CardTitle className="hover:text-primary transition-colors line-clamp-2 cursor-pointer">
+        <div className="flex items-start justify-between gap-2">
+          <Link href={`/notes/${note._id}`} className="space-y-1 flex-1 min-w-0">
+            <CardTitle className="hover:text-primary transition-colors line-clamp-2 cursor-pointer break-words">
               {note.title}
             </CardTitle>
-            <CardDescription className="line-clamp-2">
+            <CardDescription className="line-clamp-3 break-words text-xs sm:text-sm">
               {stripHtml(note.content)}
             </CardDescription>
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -54,29 +54,38 @@ export function NoteCard({ note, onDelete }: NoteCardProps) {
         <CardContent className="space-y-4 cursor-pointer">
           {/* Folder indicator */}
           {note.folderId && typeof note.folderId === 'object' && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Folder className="h-3 w-3" />
-              <span>{note.folderId.name}</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+              <Folder className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{note.folderId.name}</span>
             </div>
           )}
           
           {/* Tags */}
           {note.tags && note.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {note.tags.map((tag, index) => (
-                <Badge key={index} variant="secondary" className="text-xs gap-1">
-                  <TagIcon className="h-3 w-3" />
-                  {tag}
+            <div className="flex flex-wrap gap-2 overflow-hidden">
+              {note.tags.slice(0, 3).map((tag, index) => (
+                <Badge 
+                  key={index} 
+                  variant="secondary" 
+                  className="text-xs gap-1 max-w-full truncate"
+                >
+                  <TagIcon className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{tag}</span>
                 </Badge>
               ))}
+              {note.tags.length > 3 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{note.tags.length - 3}
+                </Badge>
+              )}
             </div>
           )}
 
           {/* Dates */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>Actualizada {new Date(note.updatedAt).toLocaleDateString()}</span>
+            <div className="flex items-center gap-1 truncate min-w-0">
+              <Calendar className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">Actualizada {new Date(note.updatedAt).toLocaleDateString()}</span>
             </div>
           </div>
         </CardContent>

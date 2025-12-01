@@ -18,7 +18,7 @@ import { AuthGuard } from "@/components/AuthGuard"
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { currentOrganization } = useOrganization()
+  const { currentOrganization, isLoading: isLoadingOrg } = useOrganization()
   const [data, setData] = useState<DashboardStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -41,6 +41,21 @@ export default function Dashboard() {
     loadDashboardData()
   }, [loadDashboardData])
 
+  // Mostrar loading mientras el contexto de organización está cargando
+  if (isLoadingOrg) {
+    return (
+      <AuthGuard>
+        <Layout>
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] text-muted-foreground">
+            <Loader2 className="h-10 w-10 animate-spin mb-4" />
+            <p>Cargando espacios de trabajo...</p>
+          </div>
+        </Layout>
+      </AuthGuard>
+    )
+  }
+
+  // Solo mostrar el mensaje de seleccionar organización si no está cargando y no hay organización
   if (!currentOrganization) {
     return (
       <AuthGuard>

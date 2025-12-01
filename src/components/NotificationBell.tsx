@@ -28,8 +28,19 @@ export function NotificationBell() {
       const response = await notificationApi.getNotifications(undefined, 20)
       setNotifications(response.notifications)
       setUnreadCount(response.unreadCount)
-    } catch (error) {
-      console.error('Error loading notifications:', error)
+    } catch (error: any) {
+      // Solo loguear errores que no sean de red o errores inesperados
+      if (error?.isNetworkError || error?.isExpected) {
+        // Error de red esperado: el backend probablemente no está corriendo
+        // No hacer nada, simplemente no mostrar notificaciones
+        // No loguear para evitar spam en consola
+      } else {
+        // Solo loguear errores inesperados
+        console.error('Error loading notifications:', error)
+      }
+      // Mantener estado vacío en caso de error
+      setNotifications([])
+      setUnreadCount(0)
     }
   }, [])
 

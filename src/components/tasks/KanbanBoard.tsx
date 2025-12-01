@@ -101,16 +101,16 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
   }
 
   return (
-    <div className="flex flex-1 gap-3 sm:gap-4 md:gap-6 lg:gap-8 overflow-x-auto pb-4 sm:pb-6 snap-x snap-mandatory h-full scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mx-2 sm:mx-0 px-2 sm:px-0">
+    <div className="flex flex-1 gap-3 sm:gap-4 md:gap-6 lg:gap-8 overflow-x-auto pb-4 sm:pb-6 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mx-2 sm:mx-0 px-2 sm:px-0">
       {COLUMNS.map((col) => (
         <div 
           key={col.id}
-          className="flex-shrink-0 w-[280px] sm:w-80 md:w-[320px] flex flex-col bg-card rounded-lg sm:rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300 snap-center h-full"
+          className="flex-shrink-0 w-[280px] sm:w-80 md:w-[320px] flex flex-col bg-card rounded-lg sm:rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300 snap-center max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-14rem)]"
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, col.id)}
         >
           {/* Column Header */}
-          <div className="p-3 sm:p-4 flex items-center justify-between border-b border-border/50 bg-muted/30 rounded-t-lg sm:rounded-t-xl sticky top-0 z-10 backdrop-blur-sm">
+          <div className="p-3 sm:p-4 flex items-center justify-between border-b border-border/50 bg-muted/30 rounded-t-lg sm:rounded-t-xl flex-shrink-0">
             <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
               <div className={cn("w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0", col.id === 'todo' ? 'bg-gray-400' : col.id === 'in_progress' ? 'bg-blue-500' : 'bg-green-500')} />
               <h3 className="font-semibold text-xs sm:text-sm truncate">{col.title}</h3>
@@ -124,7 +124,7 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
           </div>
 
           {/* Tasks List */}
-          <div className="p-2 sm:p-3 md:p-4 flex-1 overflow-y-auto min-h-[120px] sm:min-h-[150px] scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          <div className="p-2 sm:p-3 md:p-4 overflow-y-auto flex-1 min-h-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
             <div className="space-y-2 sm:space-y-3">
               {columns[col.id]?.map((task) => (
                 <TaskCard 
@@ -149,7 +149,7 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
             </div>
           </div>
           
-          <div className="p-2 sm:p-3 border-t border-border/50 bg-muted/20 rounded-b-lg sm:rounded-b-xl">
+          <div className="p-2 sm:p-3 border-t border-border/50 bg-muted/20 rounded-b-lg sm:rounded-b-xl flex-shrink-0">
              <Button 
               variant="ghost" 
               className="w-full justify-start text-muted-foreground text-[10px] sm:text-xs h-7 sm:h-8 hover:text-primary hover:bg-accent/50 transition-colors"

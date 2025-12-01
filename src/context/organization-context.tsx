@@ -10,6 +10,7 @@ interface OrganizationContextType {
   currentOrganization: Organization | null
   isLoading: boolean
   setOrganization: (orgId: string) => void
+  setOrganizationWithoutReload: (orgId: string) => void
   refreshOrganizations: () => Promise<void>
 }
 
@@ -60,6 +61,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error loading organizations:', error)
       toast.error('Error al cargar tus espacios de trabajo')
+      // En caso de error, asegurarse de no quedarse en estado de carga
+      setOrganizations([])
+      setCurrentOrganization(null)
     } finally {
       setIsLoading(false)
     }
@@ -81,6 +85,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const setOrganizationWithoutReload = (orgId: string) => {
+    const org = organizations.find(o => o._id === orgId)
+    if (org) {
+      setCurrentOrganization(org)
+      localStorage.setItem('currentOrgId', org._id)
+      toast.success(`Cambiado a ${org.name}`)
+    }
+  }
+
   return (
     <OrganizationContext.Provider
       value={{
@@ -88,6 +101,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         currentOrganization,
         isLoading,
         setOrganization,
+        setOrganizationWithoutReload,
         refreshOrganizations: loadOrganizations
       }}
     >

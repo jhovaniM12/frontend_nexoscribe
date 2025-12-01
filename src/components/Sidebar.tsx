@@ -62,7 +62,7 @@ const navItems = [
 export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose }: SidebarProps) {
   const { user } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
-  const { organizations, currentOrganization, isLoading, setOrganization } = useOrganization()
+  const { organizations, currentOrganization, isLoading, setOrganization, setOrganizationWithoutReload, refreshOrganizations } = useOrganization()
 
   const isSuperAdmin = user?.systemRole === 'superadmin';
 
@@ -90,17 +90,32 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
 
     setIsCreating(true)
     try {
-      await organizationApi.create({ name: newOrgName })
+      const response = await organizationApi.create({ name: newOrgName })
+      const newOrgId = response.organization?._id
+      
+      if (!newOrgId) {
+        throw new Error('La organización no fue creada correctamente')
+      }
+
       toast.success("Organización creada")
       setIsCreateOpen(false)
       setNewOrgName("")
       
-      // Recargar organizaciones y cambiar a la nueva
-      // Esto fuerza un refresh completo para simplificar el estado
+      // Guardar el ID de la nueva organización en localStorage
+      localStorage.setItem('currentOrgId', newOrgId)
+      
+      // Cerrar el diálogo antes de recargar
+      setIsCreateOpen(false)
+      setNewOrgName("")
+      
+      // Esperar un momento para asegurar que el backend haya procesado la creación
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Recargar la página para que el contexto cargue la nueva organización
       window.location.reload()
-    } catch {
-      toast.error("Error al crear la organización")
-    } finally {
+    } catch (error: any) {
+      console.error('Error creating organization:', error)
+      toast.error(error?.message || "Error al crear la organización")
       setIsCreating(false)
     }
   }
@@ -203,7 +218,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
                       )}
                     </DropdownMenuItem>
                   ))}
-                  {user?.accountType === 'business' && (
+                  {user?.accountType === 'business' && !organizations.some(org => org.isOwner) && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 

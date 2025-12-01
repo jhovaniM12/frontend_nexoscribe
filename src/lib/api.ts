@@ -21,11 +21,32 @@ export const api = {
       headers['x-org-id'] = currentOrgId;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      credentials: 'include', // ✅ Importante para cookies httpOnly
-      headers,
-    })
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        credentials: 'include', // ✅ Importante para cookies httpOnly
+        headers,
+      })
+    } catch (fetchError) {
+      // Manejar errores de red (conexión fallida, CORS, etc.)
+      const errorMessage = fetchError instanceof Error 
+        ? fetchError.message 
+        : 'No se pudo conectar con el servidor'
+      
+      const error = new Error(errorMessage) as Error & {
+        status?: number
+        statusText?: string
+        isExpected?: boolean
+        isNetworkError?: boolean
+      }
+      error.isNetworkError = true
+      error.status = 0
+      error.statusText = 'Network Error'
+      // Marcar como esperado para que no se muestre como error crítico
+      error.isExpected = true
+      throw error
+    }
 
     if (!response.ok) {
       let errorMessage = `Error: ${response.statusText}`
