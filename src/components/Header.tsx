@@ -1,13 +1,11 @@
 'use client'
 
-import { Moon, Sun, User, Menu, ShieldAlert } from "lucide-react"
-import { NotificationBell } from "@/components/NotificationBell"
+import { Moon, Sun, User, Menu, ShieldAlert, LogOut, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -16,6 +14,10 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
+import { cn } from "@/lib/utils"
+
+import { CommandPalette } from "./CommandPalette"
+import { Breadcrumbs } from "./Breadcrumbs"
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -27,14 +29,10 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
-  // Necesario para evitar problemas de hidratación con el tema
-  // Este setState es necesario y seguro aquí - solo se ejecuta una vez al montar
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
-  // Obtener iniciales del nombre del usuario
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -45,67 +43,79 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   }
 
   return (
-    <header className="h-16 border-b border-border/50 bg-card/95 backdrop-blur-md sticky top-0 z-30 supports-[backdrop-filter]:bg-card/80">
-      <div className="h-full flex items-center justify-between px-4 sm:px-6 md:px-8 gap-3 sm:gap-4">
-        {/* Mobile Menu Button */}
-        {onMenuClick && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden h-9 w-9"
-            onClick={onMenuClick}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
+    <header className="h-14 border-b border-border/60 bg-card sticky top-0 z-30">
+      <div className="h-full flex items-center justify-between px-4 sm:px-6 gap-6">
+        <div className="flex items-center gap-4">
+          {/* Mobile Menu Button */}
+          {onMenuClick && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden h-9 w-9"
+              onClick={onMenuClick}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
 
-        {/* Search */}
-        <div className="flex-1 max-w-md relative">
+          {/* Breadcrumbs */}
+          <Breadcrumbs />
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {/* Notification Bell */}
-          <NotificationBell />
+        {/* Global Search / Command Palette */}
+        <div className="flex-1 max-w-md hidden md:block">
+          <CommandPalette />
+        </div>
 
+        {/* Action buttons (mobile) */}
+        <div className="flex md:hidden flex-1" />
+
+        {/* Actions */}
+        <div className="flex items-center gap-1">
           {/* Theme Toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="h-9 w-9"
+            className="h-9 w-9 rounded-lg"
           >
             {mounted && theme === "dark" ? (
-              <Sun className="h-4 w-4" />
+              <Sun className="h-[18px] w-[18px]" />
             ) : (
-              <Moon className="h-4 w-4" />
+              <Moon className="h-[18px] w-[18px]" />
             )}
           </Button>
 
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                <Avatar className="h-9 w-9">
-                  {user?.avatar ? (
+              <Button
+                variant="ghost"
+                className="relative h-9 px-2 gap-2 rounded-lg hover:bg-accent"
+              >
+                <Avatar className="h-7 w-7">
+                  {user?.avatar && (
                     <AvatarImage src={user.avatar} alt={user.name} />
-                  ) : null}
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.name ? getInitials(user.name) : <User className="h-4 w-4" />}
+                  )}
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                    {user?.name ? getInitials(user.name) : <User className="h-3.5 w-3.5" />}
                   </AvatarFallback>
                 </Avatar>
+                <span className="hidden sm:block text-sm font-medium max-w-[120px] truncate">
+                  {user?.name?.split(' ')[0]}
+                </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 bg-popover">
-              {/* Información del usuario */}
+            <DropdownMenuContent align="end" className="w-56">
+              {/* User Info */}
               {user && (
                 <>
-                  <div className="px-2 py-3 space-y-1">
+                  <div className="px-3 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
-                        {user.avatar ? (
+                        {user.avatar && (
                           <AvatarImage src={user.avatar} alt={user.name} />
-                        ) : null}
+                        )}
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {getInitials(user.name)}
                         </AvatarFallback>
@@ -113,41 +123,45 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
                       <div className="flex flex-col min-w-0 flex-1">
                         <p className="text-sm font-semibold truncate">{user.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                        {user.role && (
-                          <p className="text-xs text-muted-foreground capitalize mt-0.5">
-                            {user.role === 'admin' ? 'Administrador' : 'Usuario'}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
                 </>
               )}
-              
-              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              
-              {/* Acceso al Panel de Administración si es Super Admin */}
-              {(user?.systemRole === 'superadmin') && (
-                <DropdownMenuItem 
-                  onClick={() => router.push('/admin')}
-                  className="font-medium text-primary focus:text-primary cursor-pointer"
-                >
-                  <ShieldAlert className="h-4 w-4 mr-2" />
-                  Panel de Super Admin
-                </DropdownMenuItem>
+
+              {/* Super Admin Access */}
+              {user?.systemRole === 'superadmin' && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/admin')}
+                    className={cn(
+                      "cursor-pointer gap-2 py-2",
+                      "text-primary focus:text-primary"
+                    )}
+                  >
+                    <ShieldAlert className="h-4 w-4" />
+                    Panel de Administración
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
               )}
 
-              <DropdownMenuItem onClick={() => router.push('/settings')}>
-                <User className="h-4 w-4 mr-2" />
-                Perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/settings')}>
+              <DropdownMenuItem
+                onClick={() => router.push('/settings')}
+                className="cursor-pointer gap-2 py-2"
+              >
+                <Settings className="h-4 w-4" />
                 Configuración
               </DropdownMenuItem>
+
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" onClick={logout}>
+
+              <DropdownMenuItem
+                onClick={logout}
+                className="cursor-pointer gap-2 py-2 text-destructive focus:text-destructive"
+              >
+                <LogOut className="h-4 w-4" />
                 Cerrar Sesión
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -157,4 +171,3 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
     </header>
   )
 }
-

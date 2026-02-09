@@ -24,25 +24,25 @@ export function Layout({ children }: LayoutProps) {
         />
       )}
 
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
+      <Sidebar
+        collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={sidebarMobileOpen}
         onMobileClose={() => setSidebarMobileOpen(false)}
       />
-      
+
       <div
         className={cn(
           "transition-all duration-300 ease-in-out min-h-screen bg-background",
           // Desktop: siempre tiene margen según el estado del sidebar
-          sidebarCollapsed ? "lg:ml-16" : "lg:ml-64",
+          sidebarCollapsed ? "lg:ml-[60px]" : "lg:ml-64",
           // Mobile: sin margen porque el sidebar es overlay
           "ml-0"
         )}
       >
         <Header onMenuClick={() => setSidebarMobileOpen(true)} />
-        
-        <main className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
+
+        <main className="p-4 sm:p-6 lg:px-8 lg:py-6">
           {children}
         </main>
       </div>

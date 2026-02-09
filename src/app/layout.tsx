@@ -1,13 +1,11 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/providers/providers"
-
-const inter = Inter({ subsets: ["latin"] })
+import { fontVariables, jakartaSans } from "@/lib/fonts"
 
 export const metadata: Metadata = {
   title: "NexoScribe",
-  description: "Aplicación de gestión de proyectos",
+  description: "Plataforma de productividad para equipos modernos",
 }
 
 export default function RootLayout({
@@ -16,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="es" suppressHydrationWarning className={fontVariables}>
+      <body className={`${jakartaSans.className} antialiased`}>
         <Providers>
           {children}
         </Providers>

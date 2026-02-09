@@ -6,7 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { FileText, CheckSquare, FolderKanban, Plus, Calendar, Loader2, User } from "lucide-react"
+import {
+  FileText,
+  CheckSquare,
+  FolderKanban,
+  Plus,
+  Calendar,
+  Loader2,
+  User,
+  TrendingUp,
+  Clock,
+  ChevronRight,
+  ArrowUpRight
+} from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
 import { dashboardApi, type DashboardStatsResponse } from "@/lib/api"
@@ -24,7 +36,7 @@ export default function Dashboard() {
 
   const loadDashboardData = useCallback(async () => {
     if (!currentOrganization) return
-    
+
     try {
       setLoading(true)
       const response = await dashboardApi.getStats()
@@ -41,40 +53,36 @@ export default function Dashboard() {
     loadDashboardData()
   }, [loadDashboardData])
 
-  // Mostrar loading mientras el contexto de organización está cargando
-  if (isLoadingOrg) {
+  if (isLoadingOrg || (loading && currentOrganization)) {
     return (
       <AuthGuard>
         <Layout>
-          <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] text-muted-foreground">
-            <Loader2 className="h-10 w-10 animate-spin mb-4" />
-            <p>Cargando espacios de trabajo...</p>
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)]">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-primary/40" />
+              </div>
+            </div>
+            <p className="mt-4 text-muted-foreground font-medium animate-pulse">Preparando tu dashboard...</p>
           </div>
         </Layout>
       </AuthGuard>
     )
   }
 
-  // Solo mostrar el mensaje de seleccionar organización si no está cargando y no hay organización
   if (!currentOrganization) {
     return (
       <AuthGuard>
         <Layout>
-          <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] text-muted-foreground">
-            <Loader2 className="h-10 w-10 animate-spin mb-4" />
-            <p>Selecciona una organización para ver el dashboard</p>
-          </div>
-        </Layout>
-      </AuthGuard>
-    )
-  }
-
-  if (loading) {
-    return (
-      <AuthGuard>
-        <Layout>
-          <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center px-4">
+            <div className="h-20 w-20 bg-muted rounded-2xl flex items-center justify-center mb-6">
+              <FolderKanban className="h-10 w-10 text-muted-foreground/50" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Bienvenido a NexoScribe</h2>
+            <p className="text-muted-foreground max-w-sm mb-8">
+              Para comenzar a gestionar tus proyectos, selecciona o crea una organización desde la barra lateral.
+            </p>
           </div>
         </Layout>
       </AuthGuard>
@@ -84,196 +92,248 @@ export default function Dashboard() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="space-y-8">
-          {/* Header */}
-          <div className="flex flex-col gap-2 animate-fade-in">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Dashboard
-            </h1>
-            <p className="text-muted-foreground text-base md:text-lg">
-              Bienvenido de vuelta, <span className="font-semibold text-foreground">{user?.name?.split(' ')[0] || 'Usuario'}</span>. 
-              Aquí está el resumen de <span className="font-medium text-foreground">{currentOrganization.name}</span>.
-            </p>
+        <div className="max-w-[1600px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+          {/* Hero Welcome Section */}
+          <div className="relative overflow-hidden rounded-3xl bg-neutral-900 px-8 py-10 text-white shadow-2xl">
+            <div className="relative z-10 max-w-2xl">
+              <Badge className="mb-4 bg-primary/20 text-primary-foreground border-0 hover:bg-primary/30">
+                Resumen de hoy
+              </Badge>
+              <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
+                ¡Hola de nuevo, {user?.name?.split(' ')[0]}! 👋
+              </h1>
+              <p className="text-neutral-400 text-lg md:text-xl leading-relaxed">
+                Hoy es un gran día para avanzar en <span className="text-white font-semibold">{currentOrganization.name}</span>.
+                Tienes {data?.stats.pendingTasks || 0} tareas esperando tu atención.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Button size="lg" className="rounded-xl shadow-lg shadow-primary/20 group" asChild>
+                  <Link href="/tasks">
+                    Empezar a trabajar
+                    <ArrowUpRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="rounded-xl bg-white/5 border-white/10 hover:bg-white/10 text-white" asChild>
+                  <Link href="/notes">
+                    Tomar una nota
+                  </Link>
+                </Button>
+              </div>
+            </div>
+            {/* Abstract Background Element */}
+            <div className="absolute top-0 right-0 -mr-20 -mt-20 h-80 w-80 rounded-full bg-primary/20 blur-[100px]" />
+            <div className="absolute bottom-0 left-1/2 -ml-20 -mb-20 h-60 w-60 rounded-full bg-blue-500/10 blur-[80px]" />
           </div>
 
-          {/* Stats */}
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3 animate-fade-in">
-            <Card className="group relative overflow-hidden border-l-4 border-l-primary hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Proyectos Activos</p>
-                    <p className="text-3xl md:text-4xl font-bold">{data?.stats.activeProjects || 0}</p>
-                  </div>
-                  <div className="h-14 w-14 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
-                    <FolderKanban className="h-7 w-7" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden border-l-4 border-l-orange-500 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Tareas Pendientes</p>
-                    <p className="text-3xl md:text-4xl font-bold">{data?.stats.pendingTasks || 0}</p>
-                  </div>
-                  <div className="h-14 w-14 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform duration-300">
-                    <CheckSquare className="h-7 w-7" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden border-l-4 border-l-blue-500 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notas Creadas</p>
-                    <p className="text-3xl md:text-4xl font-bold">{data?.stats.createdNotes || 0}</p>
-                  </div>
-                  <div className="h-14 w-14 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform duration-300">
-                    <FileText className="h-7 w-7" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Bento Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Proyectos"
+              value={data?.stats.activeProjects || 0}
+              icon={FolderKanban}
+              color="text-primary"
+              bg="bg-primary/5"
+              description="Proyectos en curso"
+              href="/projects"
+            />
+            <StatCard
+              title="Tareas"
+              value={data?.stats.pendingTasks || 0}
+              icon={CheckSquare}
+              color="text-orange-500"
+              bg="bg-orange-500/5"
+              description="Pendientes por hacer"
+              href="/tasks"
+            />
+            <StatCard
+              title="Notas"
+              value={data?.stats.createdNotes || 0}
+              icon={FileText}
+              color="text-blue-500"
+              bg="bg-blue-500/5"
+              description="Ideas documentadas"
+              href="/notes"
+            />
+            <StatCard
+              title="Miembros"
+              value={currentOrganization.members?.length || 1}
+              icon={User}
+              color="text-emerald-500"
+              bg="bg-emerald-500/5"
+              description="Colaboradores activos"
+              href="/settings"
+            />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-7">
-            {/* Recent Projects */}
-            <Card className="col-span-full lg:col-span-4 hover:shadow-lg transition-shadow duration-300">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-xl">Proyectos Recientes</CardTitle>
-                    <CardDescription className="mt-1.5">Tu actividad reciente en proyectos</CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
-                    <Link href="/projects">Ver todos</Link>
-                  </Button>
+          <div className="grid gap-8 lg:grid-cols-12">
+
+            {/* Recent Work / Projects */}
+            <Card className="lg:col-span-12 xl:col-span-8 border-none shadow-subtle bg-card/50 backdrop-blur-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-6">
+                <div>
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Proyectos Recientes
+                  </CardTitle>
                 </div>
+                <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary hover:bg-primary/5">
+                  <Link href="/projects" className="flex items-center gap-1 group">
+                    Ver todos
+                    <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
+                <div className="grid sm:grid-cols-2 gap-4">
                   {data?.recentProjects && data.recentProjects.length > 0 ? (
                     data.recentProjects.map((project) => (
-                      <div key={project._id} className="group">
-                        <div className="flex items-center justify-between mb-2">
-                          <Link href={`/projects/${project._id}/tasks`} className="block">
-                            <h4 className="font-medium group-hover:text-primary transition-colors truncate max-w-[200px] sm:max-w-xs">
-                              {project.name}
-                            </h4>
-                          </Link>
-                          <span className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-1 rounded-full">
-                            {project.tasksCompleted}/{project.tasksTotal} tareas
-                          </span>
+                      <Link
+                        key={project._id}
+                        href={`/projects/${project._id}/tasks`}
+                        className="group relative flex flex-col p-5 rounded-2xl border border-border/50 bg-background/50 hover:bg-accent/50 hover:border-primary/20 transition-all duration-300"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+                            {project.name.charAt(0)}
+                          </div>
+                          <Badge variant="secondary" className="bg-background/80 text-[10px] font-bold">
+                            {project.tasksCompleted}/{project.tasksTotal} TASKS
+                          </Badge>
                         </div>
-                        <Progress value={project.progress} className="h-2" />
-                      </div>
+                        <h4 className="font-bold text-lg mb-4 group-hover:text-primary transition-colors flex items-center justify-between">
+                          {project.name}
+                          <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </h4>
+                        <div className="mt-auto space-y-2">
+                          <div className="flex justify-between text-xs text-muted-foreground font-medium">
+                            <span>Progreso</span>
+                            <span>{project.progress}%</span>
+                          </div>
+                          <Progress value={project.progress} className="h-1.5" />
+                        </div>
+                      </Link>
                     ))
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
-                      <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center">
-                        <FolderKanban className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Sin proyectos activos</p>
-                        <p className="text-sm text-muted-foreground">Crea tu primer proyecto para empezar</p>
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/projects">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Crear Proyecto
-                        </Link>
-                      </Button>
-                    </div>
+                    <EmptyState
+                      icon={FolderKanban}
+                      title="Sin proyectos activos"
+                      description="Crea tu primer proyecto para empezar"
+                      link="/projects"
+                      buttonText="Crear Proyecto"
+                    />
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Upcoming Tasks */}
-            <Card className="col-span-full lg:col-span-3 hover:shadow-lg transition-shadow duration-300">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-xl">Próximas Tareas</CardTitle>
-                    <CardDescription className="mt-1.5">Pendientes por prioridad</CardDescription>
-                  </div>
-                  <Button variant="ghost" size="sm" asChild className="w-full sm:w-auto">
-                    <Link href="/tasks">Ver todas</Link>
-                  </Button>
-                </div>
+            {/* Upcoming / Tasks Feed */}
+            <Card className="lg:col-span-12 xl:col-span-4 border-none shadow-subtle bg-card/50 backdrop-blur-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-6">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-orange-500" />
+                  Próximas Tareas
+                </CardTitle>
+                <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
+                  <Link href="/tasks">Ver todas</Link>
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {data?.upcomingTasks && data.upcomingTasks.length > 0 ? (
                     data.upcomingTasks.map((task) => (
                       <div
                         key={task._id}
-                        className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 hover:shadow-sm transition-all duration-200 group cursor-pointer"
+                        className="group flex items-center gap-4 p-4 rounded-2xl border border-transparent bg-background/40 hover:bg-background hover:shadow-sm hover:border-border/50 transition-all duration-300 cursor-pointer"
                       >
-                        <Avatar className="h-9 w-9 mt-0.5 border-2 border-background shadow-sm">
-                          {task.assignedTo?.avatar ? (
-                             <AvatarImage src={task.assignedTo.avatar} alt={task.assignedTo.name} />
-                          ) : null}
-                          <AvatarFallback className={cn(
-                            "text-[10px] font-bold",
-                            task.assignedTo ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                          )}>
-                            {task.assignedTo?.name 
-                              ? task.assignedTo.name.slice(0, 2).toUpperCase() 
-                              : <User className="h-4 w-4" />}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <h4 className="text-sm font-medium leading-none truncate group-hover:text-primary transition-colors">
+                        <div className={cn(
+                          "h-2 w-2 rounded-full shrink-0",
+                          task.priority === 'high' ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" :
+                            task.priority === 'medium' ? "bg-orange-500" : "bg-blue-500"
+                        )} />
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">
                             {task.title}
-                          </h4>
-                          {/* @ts-expect-error - projectId puede venir populado como objeto */}
-                          <p className="text-xs text-muted-foreground truncate">{task.projectId?.name || 'Sin proyecto'}</p>
-                          
-                          {task.dueDate && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>{new Date(task.dueDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
-                            </div>
-                          )}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                              {typeof task.projectId === 'object' && task.projectId ? task.projectId.name : 'NexoScribe'}
+                            </span>
+                          </div>
                         </div>
-                        <Badge
-                          variant={task.priority === "high" ? "destructive" : task.priority === "medium" ? "default" : "secondary"}
-                          className="text-[10px] uppercase shrink-0"
-                        >
-                          {task.priority === 'high' ? 'Alta' : task.priority === 'medium' ? 'Media' : 'Baja'}
-                        </Badge>
+
+                        {task.dueDate && (
+                          <div className="flex flex-col items-end shrink-0">
+                            <span className="text-[10px] font-bold text-muted-foreground">
+                              {new Date(task.dueDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
-                      <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center">
-                        <CheckSquare className="h-6 w-6 text-muted-foreground" />
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="h-16 w-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 text-emerald-500">
+                        <CheckSquare className="h-8 w-8" />
                       </div>
-                      <div>
-                        <p className="font-medium">¡Estás al día!</p>
-                        <p className="text-sm text-muted-foreground">No hay tareas pendientes próximas</p>
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/tasks">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Nueva Tarea
-                        </Link>
-                      </Button>
+                      <p className="font-bold">¡Todo listo!</p>
+                      <p className="text-sm text-muted-foreground">No tienes tareas para los próximos días.</p>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
+
           </div>
         </div>
       </Layout>
     </AuthGuard>
+  )
+}
+
+function StatCard({ title, value, icon: Icon, color, bg, description, href }: any) {
+  return (
+    <Link href={href}>
+      <Card className="group border-none shadow-subtle hover:shadow-elevated transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-4 flex-1">
+              <div className="flex items-center gap-2">
+                <div className={cn("p-2 rounded-lg", bg, color)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{title}</p>
+              </div>
+              <div>
+                <p className="text-3xl font-black tracking-tight">{value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{description}</p>
+              </div>
+            </div>
+          </div>
+          <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  )
+}
+
+function EmptyState({ icon: Icon, title, description, link, buttonText }: any) {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-12 px-6 rounded-2xl border-2 border-dashed border-border/60 text-center">
+      <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
+        <Icon className="h-8 w-8 text-muted-foreground/40" />
+      </div>
+      <h3 className="text-lg font-bold mb-1">{title}</h3>
+      <p className="text-sm text-muted-foreground mb-6 max-w-xs">{description}</p>
+      <Button variant="outline" size="sm" asChild className="rounded-xl">
+        <Link href={link}>
+          <Plus className="mr-2 h-4 w-4" />
+          {buttonText}
+        </Link>
+      </Button>
+    </div>
   )
 }

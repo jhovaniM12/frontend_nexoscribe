@@ -2,11 +2,11 @@
 
 import { NavLink } from "@/components/NavLink"
 import { useAuth } from "@/context/auth-context"
-import { 
+import {
   Home,
-  FileText, 
-  CheckSquare, 
-  Settings, 
+  FileText,
+  CheckSquare,
+  Settings,
   ChevronLeft,
   PenTool,
   FolderKanban,
@@ -14,7 +14,8 @@ import {
   Building,
   Plus,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -38,6 +39,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
@@ -51,25 +58,28 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/projects", icon: FolderKanban, label: "Proyectos" },
-  { href: "/tasks", icon: CheckSquare, label: "Mis Tareas" },
-  { href: "/notes", icon: FileText, label: "Notas" },
-  { href: "/board", icon: PenTool, label: "Tablero" },
-  { href: "/settings", icon: Settings, label: "Ajustes" },
+  { href: "/dashboard", icon: Home, label: "Dashboard", description: "Vista general" },
+  { href: "/projects", icon: FolderKanban, label: "Proyectos", description: "Gestionar proyectos" },
+  { href: "/tasks", icon: CheckSquare, label: "Mis Tareas", description: "Tablero Kanban" },
+  { href: "/notes", icon: FileText, label: "Notas", description: "Documentos y notas" },
+  { href: "/board", icon: PenTool, label: "Tablero", description: "Pizarra colaborativa" },
+]
+
+const settingsItems = [
+  { href: "/settings", icon: Settings, label: "Ajustes", description: "Configuración" },
 ]
 
 export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose }: SidebarProps) {
   const { user } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
-  const { organizations, currentOrganization, isLoading, setOrganization, setOrganizationWithoutReload, refreshOrganizations } = useOrganization()
+  const { organizations, currentOrganization, isLoading, setOrganization } = useOrganization()
 
-  const isSuperAdmin = user?.systemRole === 'superadmin';
+  const isSuperAdmin = user?.systemRole === 'superadmin'
 
   // Definir items según rol
   const items = isSuperAdmin ? [
-    { href: "/admin", icon: ShieldAlert, label: "Panel Admin" },
-  ] : navItems;
+    { href: "/admin", icon: ShieldAlert, label: "Panel Admin", description: "Administración" },
+  ] : navItems
 
   // Estado para diálogo de nueva organización
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -77,7 +87,6 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
   const [isCreating, setIsCreating] = useState(false)
 
   const handleCreateOrg = async () => {
-    // Validar que el usuario puede crear organizaciones
     if (user?.accountType !== 'business') {
       toast.error("Solo los usuarios empresariales pueden crear organizaciones")
       return
@@ -92,7 +101,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
     try {
       const response = await organizationApi.create({ name: newOrgName })
       const newOrgId = response.organization?._id
-      
+
       if (!newOrgId) {
         throw new Error('La organización no fue creada correctamente')
       }
@@ -100,22 +109,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
       toast.success("Organización creada")
       setIsCreateOpen(false)
       setNewOrgName("")
-      
-      // Guardar el ID de la nueva organización en localStorage
+
       localStorage.setItem('currentOrgId', newOrgId)
-      
-      // Cerrar el diálogo antes de recargar
-      setIsCreateOpen(false)
-      setNewOrgName("")
-      
-      // Esperar un momento para asegurar que el backend haya procesado la creación
+
       await new Promise(resolve => setTimeout(resolve, 300))
-      
-      // Recargar la página para que el contexto cargue la nueva organización
       window.location.reload()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Error al crear la organización"
       console.error('Error creating organization:', error)
-      toast.error(error?.message || "Error al crear la organización")
+      toast.error(errorMessage)
       setIsCreating(false)
     }
   }
@@ -130,202 +132,229 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
   }, [])
 
   const handleNavClick = () => {
-    // En móvil, cerrar el sidebar al hacer click en un enlace
     if (isMobile && onMobileClose) {
       onMobileClose()
     }
   }
 
-  return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar/95 backdrop-blur-md border-r border-sidebar-border/50 transition-all duration-300 ease-in-out z-50 shadow-lg",
-        // Desktop: tamaño según collapsed
-        collapsed ? "lg:w-16" : "lg:w-64",
-        // Mobile: siempre ancho completo cuando está abierto, oculto cuando está cerrado
-        mobileOpen ? "w-64" : "-translate-x-full lg:translate-x-0"
-      )}
-    >
-      <div className="flex flex-col h-full">
-        {/* Logo/Header con Selector de Organización */}
-        <div className={cn(
-          "h-16 flex items-center border-b border-sidebar-border",
-          collapsed && !isMobile ? "justify-center px-2" : "justify-between px-4"
+  const NavItem = ({ item, isCollapsed }: { item: typeof navItems[0], isCollapsed: boolean }) => {
+    const content = (
+      <NavLink
+        href={item.href}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
+          "text-muted-foreground hover:text-foreground hover:bg-accent",
+          "active:scale-[0.98]",
+          isCollapsed && !isMobile && "lg:justify-center lg:px-2"
+        )}
+        activeClassName="bg-accent text-foreground font-medium"
+        onClick={handleNavClick}
+      >
+        <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
+        <span className={cn(
+          "text-sm whitespace-nowrap",
+          isCollapsed && !isMobile && "lg:hidden"
         )}>
-          {(!collapsed || isMobile) ? (
-            isLoading ? (
-              <Skeleton className="h-8 w-full rounded" />
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className="flex items-center gap-2 flex-1 min-w-0 px-2 -ml-2 h-12 hover:bg-sidebar-accent text-left justify-start"
-                  >
-                    <div className="relative h-6 w-6 flex-shrink-0">
-                      {currentOrganization?.logo ? (
-                        <Image
-                          src={currentOrganization.logo}
-                          alt="Org Logo"
-                          fill
-                          className="object-contain rounded"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-primary/10 rounded flex items-center justify-center text-primary">
-                          {currentOrganization?.type === 'personal' ? (
-                            <Image
-                              src="/Icon_Shared.svg"
-                              alt="Personal"
-                              fill
-                              className="object-contain p-0.5 dark:brightness-0 dark:invert"
-                            />
-                          ) : (
-                            <Building className="h-4 w-4" />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 truncate">
-                      <span className="block text-sm font-semibold truncate">
-                        {currentOrganization?.name || 'Seleccionar...'}
-                      </span>
-                      <span className="block text-xs text-muted-foreground truncate capitalize">
-                        {currentOrganization?.type === 'personal' ? 'Personal' : currentOrganization?.role}
-                      </span>
-                    </div>
-                    <ChevronsUpDown className="h-4 w-4 text-muted-foreground opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  <DropdownMenuLabel>Mis espacios</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {organizations.map((org) => (
-                    <DropdownMenuItem 
-                      key={org._id}
-                      onClick={() => setOrganization(org._id)}
-                      className="gap-2"
+          {item.label}
+        </span>
+      </NavLink>
+    )
+
+    if (isCollapsed && !isMobile) {
+      return (
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            {content}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      )
+    }
+
+    return content
+  }
+
+  return (
+    <TooltipProvider>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-screen bg-card border-r border-border/60 transition-all duration-200 ease-out z-50",
+          collapsed ? "lg:w-[60px]" : "lg:w-64",
+          mobileOpen ? "w-64" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header con Selector de Organización */}
+          <div className={cn(
+            "h-14 flex items-center border-b border-border/60",
+            collapsed && !isMobile ? "justify-center px-2" : "justify-between px-3"
+          )}>
+            {(!collapsed || isMobile) ? (
+              isLoading ? (
+                <Skeleton className="h-9 w-full rounded-lg" />
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="flex items-center gap-2.5 flex-1 min-w-0 px-2 -ml-1 h-10 hover:bg-accent text-left justify-start rounded-lg"
                     >
-                      <div className="h-4 w-4 flex items-center justify-center rounded border border-muted">
-                        {org.type === 'personal' ? (
-                          <div className="h-2 w-2 bg-primary rounded-full" />
+                      <div className="relative h-7 w-7 flex-shrink-0">
+                        {currentOrganization?.logo ? (
+                          <Image
+                            src={currentOrganization.logo}
+                            alt="Org Logo"
+                            fill
+                            className="object-contain rounded-md"
+                          />
                         ) : (
-                          <Building className="h-3 w-3" />
+                          <div className="h-full w-full bg-primary/10 rounded-md flex items-center justify-center">
+                            {currentOrganization?.type === 'personal' ? (
+                              <Sparkles className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Building className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
                         )}
                       </div>
-                      <span className="flex-1 truncate">{org.name}</span>
-                      {currentOrganization?._id === org._id && (
-                        <div className="h-1.5 w-1.5 bg-green-500 rounded-full" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                  {user?.accountType === 'business' && !organizations.some(org => org.isOwner) && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        className="gap-2 text-muted-foreground cursor-pointer"
-                        onSelect={(e) => {
-                          e.preventDefault()
-                          setIsCreateOpen(true)
-                        }}
+                      <div className="flex-1 min-w-0">
+                        <span className="block text-sm font-semibold truncate">
+                          {currentOrganization?.name || 'Seleccionar...'}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground truncate capitalize">
+                          {currentOrganization?.type === 'personal' ? 'Espacio personal' : currentOrganization?.role}
+                        </span>
+                      </div>
+                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                      Mis espacios de trabajo
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {organizations.map((org) => (
+                      <DropdownMenuItem
+                        key={org._id}
+                        onClick={() => setOrganization(org._id)}
+                        className="gap-2.5 cursor-pointer"
                       >
-                        <Plus className="h-4 w-4" />
-                        Crear nueva organización
+                        <div className="h-5 w-5 flex items-center justify-center rounded border border-border/60 bg-muted/50">
+                          {org.type === 'personal' ? (
+                            <Sparkles className="h-3 w-3 text-primary" />
+                          ) : (
+                            <Building className="h-3 w-3" />
+                          )}
+                        </div>
+                        <span className="flex-1 truncate text-sm">{org.name}</span>
+                        {currentOrganization?._id === org._id && (
+                          <div className="h-2 w-2 bg-primary rounded-full" />
+                        )}
                       </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )
-          ) : (
-            <div className="relative h-8 w-8 flex-shrink-0 flex items-center justify-center">
-               <Image
+                    ))}
+                    {user?.accountType === 'business' && !organizations.some(org => org.isOwner) && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="gap-2 text-muted-foreground cursor-pointer"
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            setIsCreateOpen(true)
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Nueva organización
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )
+            ) : (
+              <div className="relative h-8 w-8 flex-shrink-0 flex items-center justify-center">
+                <Image
                   src="/Icon_Shared.svg"
                   alt="NexoScribe Logo"
                   fill
                   className="object-contain dark:brightness-0 dark:invert"
                   priority
                 />
-            </div>
-          )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            onClick={onToggle}
-            className={cn(
-              "h-8 w-8 transition-smooth hover:bg-sidebar-accent flex-shrink-0",
-              collapsed && !isMobile ? "" : "ml-1"
+              </div>
             )}
-          >
-            <ChevronLeft className={cn(
-              "h-4 w-4 transition-transform duration-300",
-              collapsed && "rotate-180"
-            )} />
-          </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              onClick={onToggle}
+              className={cn(
+                "h-8 w-8 transition-colors hover:bg-accent flex-shrink-0 hidden lg:flex",
+                collapsed && !isMobile ? "" : "ml-1"
+              )}
+            >
+              <ChevronLeft className={cn(
+                "h-4 w-4 transition-transform duration-200",
+                collapsed && "rotate-180"
+              )} />
+            </Button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-2 space-y-1 overflow-y-auto scrollbar-thin">
+            {items.map((item) => (
+              <NavItem key={item.href} item={item} isCollapsed={collapsed} />
+            ))}
+          </nav>
+
+          {/* Footer Navigation */}
+          <div className="p-2 border-t border-border/60 space-y-1">
+            {!isSuperAdmin && settingsItems.map((item) => (
+              <NavItem key={item.href} item={item} isCollapsed={collapsed} />
+            ))}
+          </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {items.map((item) => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                "hover:shadow-sm active:scale-[0.98]",
-                collapsed && !isMobile && "lg:justify-center"
-              )}
-              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium shadow-sm"
-              onClick={handleNavClick}
-            >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
-              <span className={cn("text-sm whitespace-nowrap font-medium", collapsed && !isMobile && "lg:hidden")}>
-                {item.label}
-              </span>
-            </NavLink>
-          ))}
-        </nav>
-      </div>
-
-      {/* Diálogo para crear organización */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Crear Nueva Organización</DialogTitle>
-            <DialogDescription>
-              Crea un espacio de trabajo para tu equipo o empresa.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-2">
-              <Label htmlFor="orgName">Nombre de la Organización</Label>
-              <Input
-                id="orgName"
-                placeholder="Ej: Acme Corp"
-                value={newOrgName}
-                onChange={(e) => setNewOrgName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateOrg()}
-              />
+        {/* Diálogo para crear organización */}
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nueva Organización</DialogTitle>
+              <DialogDescription>
+                Crea un espacio de trabajo para tu equipo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="space-y-2">
+                <Label htmlFor="orgName">Nombre</Label>
+                <Input
+                  id="orgName"
+                  placeholder="Ej: Acme Corp"
+                  value={newOrgName}
+                  onChange={(e) => setNewOrgName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateOrg()}
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateOrg} disabled={isCreating || !newOrgName.trim()}>
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando...
-                </>
-              ) : (
-                "Crear Organización"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </aside>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateOrg} disabled={isCreating || !newOrgName.trim()}>
+                {isCreating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  "Crear"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </aside>
+    </TooltipProvider>
   )
 }
-

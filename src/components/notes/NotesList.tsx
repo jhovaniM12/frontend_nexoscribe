@@ -8,19 +8,31 @@ import { useRouter } from "next/navigation"
 import { type Note } from "@/lib/api"
 import { NoteListItem } from "./NoteListItem"
 
-interface NotesListProps {
+export interface NotesListProps {
   notes: Note[]
   loading: boolean
   searchQuery: string
   selectedFolderId?: string | null
   onDelete: (noteId: string, e: React.MouseEvent) => void
+  onPin?: (noteId: string, e: React.MouseEvent) => void
+  onArchive?: (noteId: string, e: React.MouseEvent) => void
+  showArchived?: boolean
 }
 
-export function NotesList({ notes, loading, searchQuery, selectedFolderId, onDelete }: NotesListProps) {
+export function NotesList({
+  notes,
+  loading,
+  searchQuery,
+  selectedFolderId,
+  onDelete,
+  onPin,
+  onArchive,
+  showArchived
+}: NotesListProps) {
   const router = useRouter()
 
   const handleNewNote = () => {
-    const url = selectedFolderId 
+    const url = selectedFolderId
       ? `/notes/new?folder=${selectedFolderId}`
       : '/notes/new'
     router.push(url)
@@ -55,9 +67,13 @@ export function NotesList({ notes, loading, searchQuery, selectedFolderId, onDel
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">
-          {searchQuery ? "No se encontraron notas con ese criterio" : "No tienes notas todavía"}
+          {searchQuery
+            ? "No se encontraron notas con ese criterio"
+            : showArchived
+              ? "No tienes notas archivadas"
+              : "No tienes notas todavía"}
         </p>
-        {!searchQuery && (
+        {!searchQuery && !showArchived && (
           <Button className="mt-4 gap-2" onClick={handleNewNote}>
             <Plus className="h-4 w-4" />
             Crear primera nota
@@ -70,9 +86,17 @@ export function NotesList({ notes, loading, searchQuery, selectedFolderId, onDel
   return (
     <div className="space-y-3">
       {notes.map((note) => (
-        <NoteListItem key={note._id} note={note} onDelete={onDelete} />
+        <NoteListItem
+          key={note._id}
+          note={note}
+          onDelete={onDelete}
+          onPin={onPin}
+          onArchive={onArchive}
+          showArchived={showArchived}
+        />
       ))}
     </div>
   )
 }
+
 

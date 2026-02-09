@@ -2,9 +2,9 @@
 
 import { Layout } from "@/components/Layout"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Grid3x3, List } from "lucide-react"
+import { Grid3x3, List, Archive } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useCallback } from "react"
 import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 import { filterNotesBySearch } from "@/utils/noteUtils"
@@ -14,6 +14,8 @@ import { NotesHeader } from "@/components/notes/NotesHeader"
 import { NotesGrid } from "@/components/notes/NotesGrid"
 import { NotesList } from "@/components/notes/NotesList"
 import { AuthGuard } from "@/components/AuthGuard"
+import { Button } from "@/components/ui/button"
+import { QuickNoteInput } from "@/components/notes/QuickNoteInput"
 
 const FOLDER_COLORS = [
   { name: 'Azul', value: '#3B82F6' },
@@ -30,13 +32,14 @@ function NotesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedFolderId = searchParams.get('folder')
-  
+
   const [notes, setNotes] = useState<Note[]>([])
   const [folders, setFolders] = useState<FolderType[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingFolders, setLoadingFolders] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  
+  const [showArchived, setShowArchived] = useState(false)
+
   // Estados para el diálogo de carpetas
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [folderDialogMode, setFolderDialogMode] = useState<'create' | 'edit'>('create')
@@ -44,7 +47,7 @@ function NotesContent() {
   const [folderName, setFolderName] = useState("")
   const [folderColor, setFolderColor] = useState(FOLDER_COLORS[0].value)
   const [isSubmittingFolder, setIsSubmittingFolder] = useState(false)
-  
+
   // Cargar carpetas
   useEffect(() => {
     const loadFolders = async () => {
@@ -64,25 +67,29 @@ function NotesContent() {
     loadFolders()
   }, [])
 
+  // Función para recargar notas
+  const loadNotes = useCallback(async () => {
+    try {
+      setLoading(true)
+      const folderIdParam = selectedFolderId === 'all' ? undefined : selectedFolderId || undefined
+      const response = await notesApi.getAll({
+        folderId: folderIdParam,
+        archived: showArchived
+      })
+      setNotes(response.notes || [])
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al cargar las notas"
+      toast.error(errorMessage)
+      console.error("Error loading notes:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedFolderId, showArchived])
+
   // Cargar notas desde la API
   useEffect(() => {
-    const loadNotes = async () => {
-      try {
-        setLoading(true)
-        const folderIdParam = selectedFolderId === 'all' ? undefined : selectedFolderId || undefined
-        const response = await notesApi.getAll(folderIdParam || undefined)
-        setNotes(response.notes || [])
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Error al cargar las notas"
-        toast.error(errorMessage)
-        console.error("Error loading notes:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadNotes()
-  }, [selectedFolderId])
+  }, [loadNotes])
 
   // Filtrar notas por búsqueda
   const filteredNotes = filterNotesBySearch(notes, searchQuery)
@@ -103,6 +110,37 @@ function NotesContent() {
       const errorMessage = error instanceof Error ? error.message : "Error al eliminar la nota"
       toast.error(errorMessage)
       console.error("Error deleting note:", error)
+    }
+  }
+
+  const handlePin = async (noteId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    try {
+      const response = await notesApi.togglePin(noteId)
+      setNotes(notes.map(note =>
+        note._id === noteId ? { ...note, isPinned: response.isPinned } : note
+      ))
+      toast.success(response.isPinned ? "Nota fijada" : "Nota desfijada")
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al cambiar estado"
+      toast.error(errorMessage)
+    }
+  }
+
+  const handleArchive = async (noteId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    try {
+      const response = await notesApi.toggleArchive(noteId)
+      // Remover de la lista actual ya que cambia de categoría
+      setNotes(notes.filter(note => note._id !== noteId))
+      toast.success(response.isArchived ? "Nota archivada" : "Nota restaurada")
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al archivar"
+      toast.error(errorMessage)
     }
   }
 
@@ -144,14 +182,14 @@ function NotesContent() {
       } else {
         toast.success("Carpeta eliminada exitosamente")
       }
-      
+
       // Si la carpeta eliminada estaba seleccionada, volver a todas las notas
       if (selectedFolderId === folderId) {
         router.push('/notes')
       } else {
         // Recargar notas
         const folderIdParam = selectedFolderId === 'all' ? undefined : selectedFolderId || undefined
-        const notesResponse = await notesApi.getAll(folderIdParam || undefined)
+        const notesResponse = await notesApi.getAll({ folderId: folderIdParam, archived: showArchived })
         setNotes(notesResponse.notes || [])
       }
     } catch (error) {
@@ -196,12 +234,12 @@ function NotesContent() {
   }
 
   const selectedFolderData = folders.find(f => f._id === selectedFolderId)
-  const currentFolderName = selectedFolderId === null || selectedFolderId === 'all' 
-    ? "Todas las notas" 
+  const currentFolderName = selectedFolderId === null || selectedFolderId === 'all'
+    ? "Todas las notas"
     : selectedFolderData?.name || "Carpeta"
 
-  const currentSubtitle = selectedFolderId 
-    ? "Gestiona las notas de esta carpeta" 
+  const currentSubtitle = selectedFolderId
+    ? "Gestiona las notas de esta carpeta"
     : "Gestiona y organiza tus ideas"
 
   return (
@@ -222,9 +260,17 @@ function NotesContent() {
 
           {/* Contenido principal */}
           <div className="flex-1 space-y-4 sm:space-y-6 overflow-y-auto min-w-0">
+            {/* Quick Note Input */}
+            <div className="w-full max-w-2xl mx-auto px-4 sm:px-0">
+              <QuickNoteInput
+                onNoteCreated={loadNotes}
+                selectedFolderId={selectedFolderId === 'all' ? null : selectedFolderId}
+              />
+            </div>
+
             <NotesHeader
-              title={currentFolderName}
-              subtitle={currentSubtitle}
+              title={showArchived ? "Notas archivadas" : currentFolderName}
+              subtitle={showArchived ? "Notas que has archivado" : currentSubtitle}
               searchQuery={searchQuery}
               selectedFolderId={selectedFolderId}
               onSearchChange={setSearchQuery}
@@ -232,16 +278,28 @@ function NotesContent() {
 
             {/* Tabs for Grid/List View */}
             <Tabs defaultValue="grid" className="w-full">
-              <TabsList>
-                <TabsTrigger value="grid" className="gap-2">
-                  <Grid3x3 className="h-4 w-4" />
-                  Tablero
-                </TabsTrigger>
-                <TabsTrigger value="list" className="gap-2">
-                  <List className="h-4 w-4" />
-                  Lista
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <TabsList>
+                  <TabsTrigger value="grid" className="gap-2">
+                    <Grid3x3 className="h-4 w-4" />
+                    Tablero
+                  </TabsTrigger>
+                  <TabsTrigger value="list" className="gap-2">
+                    <List className="h-4 w-4" />
+                    Lista
+                  </TabsTrigger>
+                </TabsList>
+
+                <Button
+                  variant={showArchived ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowArchived(!showArchived)}
+                  className="gap-2"
+                >
+                  <Archive className="h-4 w-4" />
+                  {showArchived ? "Ver activas" : "Ver archivadas"}
+                </Button>
+              </div>
 
               {/* Grid View */}
               <TabsContent value="grid" className="mt-6">
@@ -251,6 +309,9 @@ function NotesContent() {
                   searchQuery={searchQuery}
                   selectedFolderId={selectedFolderId}
                   onDelete={handleDelete}
+                  onPin={handlePin}
+                  onArchive={handleArchive}
+                  showArchived={showArchived}
                 />
               </TabsContent>
 
@@ -262,6 +323,9 @@ function NotesContent() {
                   searchQuery={searchQuery}
                   selectedFolderId={selectedFolderId}
                   onDelete={handleDelete}
+                  onPin={handlePin}
+                  onArchive={handleArchive}
+                  showArchived={showArchived}
                 />
               </TabsContent>
             </Tabs>

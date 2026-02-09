@@ -156,13 +156,122 @@
 
 /* Código */
 .editor-code {
-  background-color: hsl(var(--muted));
-  padding: 12px;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 0.9em;
-  margin-bottom: 8px;
+  background-color: hsl(var(--muted) / 0.8);
+  padding: 2.5rem 1rem 1rem 1rem;
+  border-radius: 8px;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.875rem;
+  margin: 1rem 0;
   overflow-x: auto;
+  tab-size: 2;
+  line-height: 1.6;
+  white-space: pre;
+  position: relative;
+  border: 1px solid hsl(var(--border) / 0.5);
+  display: block;
+  min-width: 100%;
+}
+
+.editor-code::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  background-color: hsl(var(--muted));
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px 8px 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+}
+
+/* Syntax Highlighting Tokens */
+.editor-tokenComment {
+  color: #707070;
+  font-style: italic;
+}
+
+.editor-tokenPunctuation {
+  color: hsl(var(--foreground) / 0.8);
+}
+
+.editor-tokenProperty {
+  color: #a855f7;
+  /* Purple */
+}
+
+.editor-tokenSelector {
+  color: #10b981;
+  /* Green */
+}
+
+.editor-tokenOperator {
+  color: #ec4899;
+  /* Pink */
+}
+
+.editor-tokenAttr {
+  color: #3b82f6;
+  /* Blue */
+}
+
+.editor-tokenVariable {
+  color: #f59e0b;
+  /* Orange */
+}
+
+.editor-tokenFunction {
+  color: #6366f1;
+  /* Indigo */
+}
+
+.editor-tokenString {
+  color: #10b981;
+}
+
+.editor-tokenKeyword {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* Dark mode adjustments */
+.dark .editor-code {
+  background-color: hsl(0 0% 10% / 0.5);
+}
+
+.dark .editor-tokenProperty {
+  color: #c084fc;
+}
+
+.dark .editor-tokenSelector {
+  color: #34d399;
+}
+
+.dark .editor-tokenAttr {
+  color: #93c5fd;
+}
+
+.dark .editor-tokenVariable {
+  color: #fdba74;
+}
+
+.dark .editor-tokenFunction {
+  color: #c4b5fd;
+}
+
+.dark .editor-tokenKeyword {
+  color: #60a5fa;
+}
+
+.dark .editor-tokenString {
+  color: #4ade80;
 }
 
 /* Imágenes */
@@ -234,4 +343,3 @@
   background-color: hsl(var(--border));
   margin: 0 0.25rem;
 }
-

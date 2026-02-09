@@ -1,24 +1,34 @@
 'use client'
 
-import {AutoFocusPlugin} from '@lexical/react/LexicalAutoFocusPlugin';
-import {LexicalComposer} from '@lexical/react/LexicalComposer';
-import {ContentEditable} from '@lexical/react/LexicalContentEditable';
-import {LexicalErrorBoundary} from '@lexical/react/LexicalErrorBoundary';
-import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
-import {RichTextPlugin} from '@lexical/react/LexicalRichTextPlugin';
-import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
+import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
+import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import {
   ParagraphNode,
   TextNode,
   EditorState,
 } from 'lexical';
-import {useEffect, useRef} from 'react';
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {$getRoot, $createParagraphNode} from 'lexical';
-import {$generateHtmlFromNodes, $generateNodesFromDOM} from '@lexical/html';
+import { useEffect, useRef } from 'react';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { $getRoot, $createParagraphNode } from 'lexical';
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
+import { CodeNode, CodeHighlightNode } from '@lexical/code';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { ListNode, ListItemNode } from '@lexical/list';
+import { LinkNode, AutoLinkNode } from '@lexical/link';
 
 import ExampleTheme from './Theme';
 import ToolbarPlugin from './ToolbarPlugin';
+import { ImageNode } from './nodes/ImageNode';
+import ImagesPlugin from './plugins/ImagesPlugin';
+import CodeBlockPlugin from './plugins/CodeBlockPlugin';
+import FormatPlugin from './plugins/FormatPlugin';
 import './editor.css';
 
 const placeholder = 'Enter some rich text...';
@@ -39,7 +49,7 @@ interface LexicalEditorProps {
 }
 
 // Plugin para inicializar contenido HTML
-function InitialContentPlugin({initialHtml}: {initialHtml?: string}) {
+function InitialContentPlugin({ initialHtml }: { initialHtml?: string }) {
   const [editor] = useLexicalComposerContext();
   const hasInitialized = useRef(false);
 
@@ -55,14 +65,14 @@ function InitialContentPlugin({initialHtml}: {initialHtml?: string}) {
       try {
         const parser = new DOMParser();
         let htmlContent = initialHtml.trim();
-        
+
         if (!htmlContent.startsWith('<')) {
           htmlContent = `<p dir="ltr">${htmlContent}</p>`;
         } else {
           // Asegurar que el primer elemento tenga dir="ltr"
           htmlContent = htmlContent.replace(/^<(\w+)/, '<$1 dir="ltr"');
         }
-        
+
         const dom = parser.parseFromString(htmlContent, 'text/html');
         const nodes = $generateNodesFromDOM(editor, dom.body);
         root.append(...nodes);
@@ -82,7 +92,7 @@ function InitialContentPlugin({initialHtml}: {initialHtml?: string}) {
 }
 
 // Plugin para manejar cambios y generar HTML
-function OnChangePluginInternal({onChange}: {onChange?: (html: string) => void}) {
+function OnChangePluginInternal({ onChange }: { onChange?: (html: string) => void }) {
   const [editor] = useLexicalComposerContext();
 
   if (!onChange) {
@@ -103,7 +113,19 @@ function OnChangePluginInternal({onChange}: {onChange?: (html: string) => void})
 
 const editorConfig = {
   namespace: 'NoteEditor',
-  nodes: [ParagraphNode, TextNode],
+  nodes: [
+    ParagraphNode,
+    TextNode,
+    ImageNode,
+    CodeNode,
+    CodeHighlightNode,
+    HeadingNode,
+    QuoteNode,
+    ListNode,
+    ListItemNode,
+    LinkNode,
+    AutoLinkNode,
+  ],
   onError,
   theme: ExampleTheme,
 };
@@ -135,6 +157,11 @@ function LexicalEditor({
             ErrorBoundary={LexicalErrorBoundary}
           />
           <HistoryPlugin />
+          <ImagesPlugin />
+          <CodeBlockPlugin />
+          <FormatPlugin />
+          <ListPlugin />
+          <LinkPlugin />
           {!initialValue && <AutoFocusPlugin />}
           {initialValue && <InitialContentPlugin initialHtml={initialValue} />}
           <OnChangePluginInternal onChange={onChange} />
@@ -146,4 +173,5 @@ function LexicalEditor({
 
 // Export both default and named export for compatibility
 export default LexicalEditor;
-export {LexicalEditor};
+export { LexicalEditor };
+

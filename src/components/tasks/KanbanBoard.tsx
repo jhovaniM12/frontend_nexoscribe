@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { TaskCard } from "./TaskCard"
-import { type Task } from "@/lib/api"
+import { KanbanColumn, type KanbanColumnData } from "./KanbanColumn"
+import { AddColumnButton } from "./AddColumnButton"
+import { type Task, projectsApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { nanoid } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface KanbanBoardProps {
   tasks: Task[]
@@ -19,51 +21,219 @@ interface KanbanBoardProps {
   availableMembers?: Array<{ userId: { _id: string; name: string; email: string; avatar?: string } | string; role: string }>
   owner?: { _id: string; name: string; email: string; avatar?: string } | null
   currentUserId?: string
+  projectId?: string
 }
 
-const COLUMNS = [
-  { id: 'todo', title: 'Por hacer', color: 'bg-gray-500/10 text-gray-600' },
-  { id: 'in_progress', title: 'En progreso', color: 'bg-blue-500/10 text-blue-600' },
-  { id: 'done', title: 'Completado', color: 'bg-green-500/10 text-green-600' }
+// Columnas por defecto
+const DEFAULT_COLUMNS: KanbanColumnData[] = [
+  { id: 'todo', title: 'Por hacer', color: '#6b7280' },
+  { id: 'in_progress', title: 'En progreso', color: '#3b82f6' },
+  { id: 'done', title: 'Completado', color: '#22c55e' }
 ]
 
-export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTask, onNewTask, onStatusToggle, onQuickAssign, availableMembers, owner, currentUserId }: KanbanBoardProps) {
-  const [columns, setColumns] = useState<{ [key: string]: Task[] }>({
-    todo: [],
-    in_progress: [],
-    done: []
-  })
+// Key para localStorage
+const COLUMNS_STORAGE_KEY = 'nexoscribe-kanban-columns'
+
+export function KanbanBoard({
+  tasks,
+  loading,
+  onTaskMove,
+  onEditTask,
+  onDeleteTask,
+  onNewTask,
+  onStatusToggle,
+  onQuickAssign,
+  availableMembers,
+  owner,
+  currentUserId,
+  projectId
+}: KanbanBoardProps) {
+  // Estado de columnas
+  const [columns, setColumns] = useState<KanbanColumnData[]>([])
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
+  const [tasksByColumn, setTasksByColumn] = useState<{ [key: string]: Task[] }>({})
+
+  // Cargar columnas
+  useEffect(() => {
+    async function loadColumns() {
+      if (projectId) {
+        try {
+          const response = await projectsApi.getById(projectId)
+          if (response.project.sections && response.project.sections.length > 0) {
+            setColumns(response.project.sections.map(s => ({
+              id: s._id,
+              title: s.name,
+              color: '#3b82f6', // TODO: Save color in backend
+              order: s.order
+            })).sort((a, b) => (a.order || 0) - (b.order || 0)))
+          } else {
+            // Si no hay secciones, inicializar por defecto? O dejar vacío?
+            // Dejamos vacío o tal vez inicializamos en el backend al crear proyecto
+            setColumns([])
+          }
+        } catch (error) {
+          console.error("Error loading project sections:", error)
+        }
+      } else {
+        // Global view: Local Storage
+        const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY)
+        if (savedColumns) {
+          try {
+            const parsed = JSON.parse(savedColumns)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setColumns(parsed)
+            } else {
+              setColumns(DEFAULT_COLUMNS)
+            }
+          } catch {
+            setColumns(DEFAULT_COLUMNS)
+          }
+        } else {
+          setColumns(DEFAULT_COLUMNS)
+        }
+      }
+    }
+    loadColumns()
+  }, [projectId])
+
+  // Guardar columnas en localStorage solo si NO es project view
+  useEffect(() => {
+    if (!projectId) {
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns))
+    }
+  }, [columns, projectId])
 
   // Agrupar tareas por columna
   useEffect(() => {
-    const newColumns: { [key: string]: Task[] } = {
-      todo: [],
-      in_progress: [],
-      done: []
-    }
-    
+    const newTasksByColumn: { [key: string]: Task[] } = {}
+
+    // Inicializar todas las columnas
+    columns.forEach(col => {
+      newTasksByColumn[col.id] = []
+    })
+
+    // Distribuir tareas
     tasks.forEach(task => {
-      if (newColumns[task.status]) {
-        newColumns[task.status].push(task)
+      // Si estamos en proyecto, usar sectionId. Si no, usar status.
+      // PERO: Si la tarea no tiene sectionId (legacy), fallback a un mapeo inteligente?
+      let columnId = 'todo'
+
+      if (projectId) {
+        if (task.sectionId) {
+          columnId = task.sectionId
+        } else {
+          // Fallback para tareas viejas sin sectionId: Mapear status a columnas si tienen nombres similares?
+          // O simplemente ponerlas en la primera columna
+          columnId = columns[0]?.id || 'todo'
+        }
       } else {
-        // Fallback para estados desconocidos
-        newColumns.todo.push(task)
+        columnId = task.status || 'todo'
+      }
+
+      if (newTasksByColumn[columnId]) {
+        newTasksByColumn[columnId].push(task)
+      } else {
+        // Fallback a primera columna si el target no existe
+        const firstColumn = columns[0]?.id || 'todo'
+        if (newTasksByColumn[firstColumn]) {
+          newTasksByColumn[firstColumn].push(task)
+        }
       }
     })
 
     // Ordenar por posición
-    Object.keys(newColumns).forEach(key => {
-      newColumns[key].sort((a, b) => a.position - b.position)
+    Object.keys(newTasksByColumn).forEach(key => {
+      newTasksByColumn[key].sort((a, b) => a.position - b.position)
     })
 
-    // Actualizar columnas cuando cambian las tareas
-    // Este setState es necesario para sincronizar el estado con las tareas
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setColumns(newColumns)
-  }, [tasks])
+    setTasksByColumn(newTasksByColumn)
+  }, [tasks, columns, projectId])
 
+  // Handlers para columnas
+  const handleAddColumn = useCallback(async (newColumn: Omit<KanbanColumnData, 'id'>) => {
+    if (projectId) {
+      try {
+        const response = await projectsApi.addSection(projectId, {
+          name: newColumn.title,
+          limit: newColumn.wipLimit
+        })
+        if (response.project.sections) {
+          const s = response.project.sections[response.project.sections.length - 1]
+          setColumns(prev => [...prev, {
+            id: s._id,
+            title: s.name,
+            color: newColumn.color || '#3b82f6',
+            order: s.order,
+            wipLimit: s.limit
+          }])
+        }
+      } catch (e) {
+        toast.error("Error al crear la sección")
+      }
+    } else {
+      const column: KanbanColumnData = {
+        ...newColumn,
+        id: nanoid(8)
+      }
+      setColumns(prev => [...prev, column])
+    }
+  }, [projectId])
+
+  const handleUpdateColumn = useCallback(async (id: string, updates: Partial<KanbanColumnData>) => {
+    if (projectId) {
+      // Backend update
+      try {
+        await projectsApi.updateSection(projectId, id, {
+          name: updates.title,
+          limit: updates.wipLimit
+        })
+        setColumns(prev => prev.map(col =>
+          col.id === id ? { ...col, ...updates } : col
+        ))
+      } catch {
+        toast.error("Error al actualizar sección")
+      }
+    } else {
+      setColumns(prev => prev.map(col =>
+        col.id === id ? { ...col, ...updates } : col
+      ))
+    }
+  }, [projectId])
+
+  const handleDeleteColumn = useCallback(async (id: string) => {
+    if (columns.length <= 1) return
+
+    if (projectId) {
+      if (!confirm("¿Eliminar sección y sus tareas?")) return
+      try {
+        await projectsApi.deleteSection(projectId, id)
+        setColumns(prev => prev.filter(col => col.id !== id))
+      } catch {
+        toast.error("Error al eliminar sección")
+      }
+    } else {
+      // Mover tareas de la columna eliminada a la primera columna
+      const tasksInColumn = tasksByColumn[id] || []
+      const targetColumn = columns.find(c => c.id !== id)?.id || 'todo'
+
+      tasksInColumn.forEach(task => {
+        onTaskMove(task._id, targetColumn)
+      })
+
+      setColumns(prev => prev.filter(col => col.id !== id))
+    }
+  }, [columns, tasksByColumn, onTaskMove, projectId])
+
+  // Handlers para drag & drop de tareas y columnas
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     e.dataTransfer.setData('taskId', task._id)
+    e.dataTransfer.setData('sourceColumn', projectId ? (task.sectionId || 'todo') : (task.status || 'todo'))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
+    console.log('Dragging column:', columnId);
+    e.dataTransfer.setData('columnId', columnId)
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -72,27 +242,81 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
     e.dataTransfer.dropEffect = 'move'
   }
 
-  const handleDrop = (e: React.DragEvent, status: string) => {
+  const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault()
+    console.log('Drop on column:', targetColumnId);
     const taskId = e.dataTransfer.getData('taskId')
+
+    // Si es una tarea
     if (taskId) {
-      // Optimistic update local
-      const task = tasks.find(t => t._id === taskId)
-      if (task && task.status !== status) {
-        onTaskMove(taskId, status)
+      // ... task logic
+      console.log('Task Drop');
+      const sourceColumn = e.dataTransfer.getData('sourceColumn')
+      if (sourceColumn !== targetColumnId) {
+        onTaskMove(taskId, targetColumnId)
+      }
+    } else {
+      const sourceColumnId = e.dataTransfer.getData('columnId')
+      console.log('Column Drop:', sourceColumnId, '->', targetColumnId);
+      // ... column logic
+      if (sourceColumnId && sourceColumnId !== targetColumnId) {
+        const sourceIndex = columns.findIndex(c => c.id === sourceColumnId)
+        const targetIndex = columns.findIndex(c => c.id === targetColumnId)
+
+        if (sourceIndex !== -1 && targetIndex !== -1) {
+          const newColumns = [...columns]
+          const [movedColumn] = newColumns.splice(sourceIndex, 1)
+          newColumns.splice(targetIndex, 0, movedColumn)
+
+          // Actualizar orden
+          const updatedColumns = newColumns.map((col, index) => ({
+            ...col,
+            order: index
+          }))
+          setColumns(updatedColumns)
+
+          if (projectId) {
+            try {
+              const sectionsForBackend = updatedColumns.map(c => ({
+                _id: c.id,
+                name: c.title,
+                order: c.order,
+                limit: c.wipLimit
+              }))
+              await projectsApi.reorderSections(projectId, sectionsForBackend)
+            } catch {
+              toast.error("Error al reordenar columnas")
+            }
+          }
+        }
       }
     }
+
+    setDragOverColumn(null)
   }
 
+  const handleDragEnter = (columnId: string) => {
+    setDragOverColumn(columnId)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null)
+  }
+
+  // Loading state
   if (loading) {
     return (
-      <div className="flex h-full gap-3 sm:gap-4 overflow-x-auto pb-4 -mx-2 sm:mx-0 px-2 sm:px-0">
+      <div className="flex h-full gap-4 overflow-x-auto pb-4 scrollbar-thin">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex-shrink-0 w-[280px] sm:w-80 bg-muted/30 rounded-lg p-3 sm:p-4 animate-pulse">
-            <div className="h-5 sm:h-6 bg-muted rounded w-1/2 mb-4" />
-            <div className="space-y-2 sm:space-y-3">
-              <div className="h-20 sm:h-24 bg-muted rounded" />
-              <div className="h-20 sm:h-24 bg-muted rounded" />
+          <div
+            key={i}
+            className="flex-shrink-0 w-[300px] bg-muted/30 rounded-xl p-4 animate-pulse"
+          >
+            <div className="h-6 bg-muted rounded w-1/2 mb-4" />
+            <div className="space-y-3">
+              <div className="h-24 bg-muted rounded-lg skeleton-shimmer" />
+              <div className="h-24 bg-muted rounded-lg skeleton-shimmer" />
+              <div className="h-16 bg-muted rounded-lg skeleton-shimmer" />
             </div>
           </div>
         ))}
@@ -101,68 +325,43 @@ export function KanbanBoard({ tasks, loading, onTaskMove, onEditTask, onDeleteTa
   }
 
   return (
-    <div className="flex flex-1 gap-3 sm:gap-4 md:gap-6 lg:gap-8 overflow-x-auto pb-4 sm:pb-6 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mx-2 sm:mx-0 px-2 sm:px-0">
-      {COLUMNS.map((col) => (
-        <div 
-          key={col.id}
-          className="flex-shrink-0 w-[280px] sm:w-80 md:w-[320px] flex flex-col bg-card rounded-lg sm:rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300 snap-center max-h-[calc(100vh-16rem)] sm:max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-14rem)]"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, col.id)}
+    <div className="flex h-full gap-4 overflow-x-auto pb-4 scrollbar-thin snap-x snap-mandatory scroll-smooth -mx-2 px-2 md:mx-0 md:px-0 items-start">
+      {columns.map((column) => (
+        <KanbanColumn
+          key={column.id}
+          column={column}
+          taskCount={tasksByColumn[column.id]?.length || 0}
+          isOver={dragOverColumn === column.id}
+          onUpdate={handleUpdateColumn}
+          onDelete={handleDeleteColumn}
+          onAddTask={onNewTask}
+          onDragOver={(e) => {
+            handleDragOver(e)
+            handleDragEnter(column.id)
+          }}
+          onDragStart={handleColumnDragStart}
+          onDrop={handleDrop}
+          className="snap-start"
         >
-          {/* Column Header */}
-          <div className="p-3 sm:p-4 flex items-center justify-between border-b border-border/50 bg-muted/30 rounded-t-lg sm:rounded-t-xl flex-shrink-0">
-            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
-              <div className={cn("w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0", col.id === 'todo' ? 'bg-gray-400' : col.id === 'in_progress' ? 'bg-blue-500' : 'bg-green-500')} />
-              <h3 className="font-semibold text-xs sm:text-sm truncate">{col.title}</h3>
-              <span className="text-[10px] sm:text-xs font-medium text-muted-foreground bg-background/80 px-1.5 sm:px-2 py-0.5 rounded-full border flex-shrink-0">
-                {columns[col.id]?.length || 0}
-              </span>
-            </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7 hover:bg-accent flex-shrink-0" onClick={() => onNewTask(col.id)}>
-              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Button>
-          </div>
-
-          {/* Tasks List */}
-          <div className="p-2 sm:p-3 md:p-4 overflow-y-auto flex-1 min-h-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-            <div className="space-y-2 sm:space-y-3">
-              {columns[col.id]?.map((task) => (
-                <TaskCard 
-                  key={task._id} 
-                  task={task} 
-                  onEdit={onEditTask} 
-                  onDelete={onDeleteTask}
-                  onDragStart={handleDragStart}
-                  onStatusToggle={onStatusToggle}
-                  onQuickAssign={onQuickAssign}
-                  availableMembers={availableMembers}
-                  owner={owner}
-                  currentUserId={currentUserId}
-                />
-              ))}
-              {columns[col.id]?.length === 0 && (
-                <div className="h-24 sm:h-32 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center text-muted-foreground text-[10px] sm:text-xs bg-muted/20 px-2 text-center">
-                  <span className="hidden sm:inline">Arrastra tareas aquí</span>
-                  <span className="sm:hidden">Arrastra aquí</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="p-2 sm:p-3 border-t border-border/50 bg-muted/20 rounded-b-lg sm:rounded-b-xl flex-shrink-0">
-             <Button 
-              variant="ghost" 
-              className="w-full justify-start text-muted-foreground text-[10px] sm:text-xs h-7 sm:h-8 hover:text-primary hover:bg-accent/50 transition-colors"
-              onClick={() => onNewTask(col.id)}
-            >
-              <Plus className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-3.5 sm:w-3.5" /> 
-              <span className="hidden sm:inline">Nueva tarea</span>
-              <span className="sm:hidden">Nueva</span>
-            </Button>
-          </div>
-        </div>
+          {tasksByColumn[column.id]?.map((task) => (
+            <TaskCard
+              key={task._id}
+              task={task}
+              onEdit={onEditTask}
+              onDelete={onDeleteTask}
+              onDragStart={handleDragStart}
+              onStatusToggle={onStatusToggle}
+              onQuickAssign={onQuickAssign}
+              availableMembers={availableMembers}
+              owner={owner}
+              currentUserId={currentUserId}
+            />
+          ))}
+        </KanbanColumn>
       ))}
+
+      {/* Botón para agregar nueva columna */}
+      <AddColumnButton onAdd={handleAddColumn} />
     </div>
   )
 }
-

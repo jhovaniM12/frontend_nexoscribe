@@ -10,15 +10,16 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LexicalEditor } from "@/components/editor/LexicalEditor"
-import { 
-  ArrowLeft, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  Clock, 
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Calendar,
+  Clock,
   Tag as TagIcon,
   Save,
-  Loader2
+  Loader2,
+  Share2
 } from "lucide-react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -26,6 +27,7 @@ import { useState, useEffect } from "react"
 import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 import { AuthGuard } from "@/components/AuthGuard"
+import { ShareDialog } from "@/components/notes/ShareDialog"
 
 // Componente Skeleton para la página de detalle
 function NoteDetailSkeleton() {
@@ -67,7 +69,7 @@ export default function NoteDetail() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = params.id as string
-  
+
   const [note, setNote] = useState<Note | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingFolders, setLoadingFolders] = useState(true)
@@ -79,6 +81,7 @@ export default function NoteDetail() {
   const [folders, setFolders] = useState<FolderType[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
   // Verificar query parameter para activar modo edición al cargar
   useEffect(() => {
@@ -181,7 +184,7 @@ export default function NoteDetail() {
 
   const handleDelete = async () => {
     if (!note) return
-    
+
     if (!confirm("¿Estás seguro de que quieres eliminar esta nota?")) {
       return
     }
@@ -203,9 +206,9 @@ export default function NoteDetail() {
 
   if (loading) {
     return (
-        <AuthGuard>
-            <NoteDetailSkeleton />
-        </AuthGuard>
+      <AuthGuard>
+        <NoteDetailSkeleton />
+      </AuthGuard>
     )
   }
 
@@ -249,8 +252,8 @@ export default function NoteDetail() {
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               {isEditing ? (
                 <>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setIsEditing(false)
                       setTitle(note.title)
@@ -277,13 +280,17 @@ export default function NoteDetail() {
                 </>
               ) : (
                 <>
+                  <Button variant="outline" onClick={() => setShareDialogOpen(true)} className="gap-2">
+                    <Share2 className="h-4 w-4" />
+                    Compartir
+                  </Button>
                   <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
                     <Edit className="h-4 w-4" />
                     Editar
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDelete} 
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
                     className="gap-2"
                     disabled={deleting}
                   >
@@ -391,11 +398,11 @@ export default function NoteDetail() {
               ) : (
                 <div className="space-y-4">
                   {/* Renderizar contenido HTML */}
-                  <div 
+                  <div
                     className="prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: content }}
                   />
-                  
+
                   {/* Tags */}
                   {note.tags && note.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-4 border-t">
@@ -412,7 +419,23 @@ export default function NoteDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Share Dialog */}
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          noteId={id}
+          noteTitle={note.title}
+          isCurrentlyShared={note.isPublic}
+          currentExpiresAt={note.publicExpiresAt}
+          onShareSuccess={async () => {
+            // Refresh note data
+            const response = await notesApi.getById(id)
+            setNote(response.note)
+          }}
+        />
       </Layout>
     </AuthGuard>
   )
 }
+

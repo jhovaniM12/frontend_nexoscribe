@@ -3,34 +3,42 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Folder, Calendar, Clock, Tag as TagIcon, MoreVertical } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Folder, Calendar, Clock, Tag as TagIcon, MoreVertical, Pin, Archive, ArchiveRestore } from "lucide-react"
 import Link from "next/link"
 import { type Note } from "@/lib/api"
 import { stripHtml } from "@/utils/noteUtils"
 
-interface NoteListItemProps {
+export interface NoteListItemProps {
   note: Note
   onDelete: (noteId: string, e: React.MouseEvent) => void
+  onPin?: (noteId: string, e: React.MouseEvent) => void
+  onArchive?: (noteId: string, e: React.MouseEvent) => void
+  showArchived?: boolean
 }
 
-export function NoteListItem({ note, onDelete }: NoteListItemProps) {
+export function NoteListItem({ note, onDelete, onPin, onArchive, showArchived }: NoteListItemProps) {
   return (
-    <Card className="shadow-card hover:shadow-elevated transition-smooth overflow-hidden">
+    <Card className={`shadow-card hover:shadow-elevated transition-smooth overflow-hidden ${note.isPinned ? 'ring-2 ring-primary/50' : ''}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-2">
           <Link href={`/notes/${note._id}`} className="flex-1 space-y-3 min-w-0">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold hover:text-primary transition-colors cursor-pointer mb-1 line-clamp-2 break-words">
-                  {note.title}
-                </h3>
+                <div className="flex items-center gap-2">
+                  {note.isPinned && (
+                    <Pin className="h-4 w-4 text-primary flex-shrink-0" />
+                  )}
+                  <h3 className="text-lg font-semibold hover:text-primary transition-colors cursor-pointer mb-1 line-clamp-2 break-words">
+                    {note.title}
+                  </h3>
+                </div>
                 <p className="text-sm text-muted-foreground line-clamp-3 break-words">
                   {stripHtml(note.content)}
                 </p>
               </div>
             </div>
-            
+
             {/* Folder indicator */}
             {note.folderId && typeof note.folderId === 'object' && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
@@ -38,15 +46,15 @@ export function NoteListItem({ note, onDelete }: NoteListItemProps) {
                 <span className="truncate">{note.folderId.name}</span>
               </div>
             )}
-            
+
             {/* Tags and Dates */}
             <div className="flex items-center justify-between flex-wrap gap-2">
               {note.tags && note.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 overflow-hidden">
                   {note.tags.slice(0, 5).map((tag, index) => (
-                    <Badge 
-                      key={index} 
-                      variant="secondary" 
+                    <Badge
+                      key={index}
+                      variant="secondary"
                       className="text-xs gap-1 max-w-full truncate"
                     >
                       <TagIcon className="h-3 w-3 flex-shrink-0" />
@@ -85,7 +93,30 @@ export function NoteListItem({ note, onDelete }: NoteListItemProps) {
               <DropdownMenuItem asChild>
                 <Link href={`/notes/${note._id}?edit=true`}>Editar</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuSeparator />
+              {onPin && !showArchived && (
+                <DropdownMenuItem onClick={(e) => onPin(note._id, e)}>
+                  <Pin className="h-4 w-4 mr-2" />
+                  {note.isPinned ? 'Desfijar' : 'Fijar'}
+                </DropdownMenuItem>
+              )}
+              {onArchive && (
+                <DropdownMenuItem onClick={(e) => onArchive(note._id, e)}>
+                  {showArchived ? (
+                    <>
+                      <ArchiveRestore className="h-4 w-4 mr-2" />
+                      Restaurar
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archivar
+                    </>
+                  )}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 className="text-destructive"
                 onClick={(e) => onDelete(note._id, e)}
               >
@@ -98,4 +129,5 @@ export function NoteListItem({ note, onDelete }: NoteListItemProps) {
     </Card>
   )
 }
+
 
