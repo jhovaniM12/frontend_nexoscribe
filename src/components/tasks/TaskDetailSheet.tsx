@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from "react"
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet"
@@ -14,14 +14,14 @@ import { LexicalEditor } from "@/components/editor/LexicalEditor"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  Calendar as CalendarIcon, 
-  CheckSquare, 
-  Flag, 
-  FolderKanban, 
-  Link as LinkIcon, 
-  MoreHorizontal, 
-  User, 
+import {
+  Calendar as CalendarIcon,
+  CheckSquare,
+  Flag,
+  FolderKanban,
+  Link as LinkIcon,
+  MoreHorizontal,
+  User,
   X,
   MessageSquare,
   Paperclip,
@@ -55,12 +55,12 @@ interface TaskDetailSheetProps {
   onDelete?: (task: Task) => void
 }
 
-export function TaskDetailSheet({ 
-  open, 
-  onOpenChange, 
-  task, 
+export function TaskDetailSheet({
+  open,
+  onOpenChange,
+  task,
   initialDate,
-  projects, 
+  projects,
   onSave,
   onDelete
 }: TaskDetailSheetProps) {
@@ -74,7 +74,7 @@ export function TaskDetailSheet({
   const [hours, setHours] = useState("")
   const [minutes, setMinutes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   // Attachments state
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isUploading, setIsUploading] = useState(false)
@@ -90,10 +90,10 @@ export function TaskDetailSheet({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editCommentContent, setEditCommentContent] = useState("")
   const [isLoadingComments, setIsLoadingComments] = useState(false)
-  
+
   const { user } = useAuth()
   const { currentOrganization } = useOrganization()
-  
+
   // Members state for assignment
   const [members, setMembers] = useState<Array<{ userId: { _id: string; name: string; email: string; avatar?: string } | string; role: string }>>([])
   const [owner, setOwner] = useState<{ _id: string; name: string; email: string; avatar?: string } | null>(null)
@@ -119,7 +119,7 @@ export function TaskDetailSheet({
       setComments([])
       return
     }
-    
+
     setIsLoadingComments(true)
     try {
       const response = await commentsApi.getAll(taskId)
@@ -129,19 +129,19 @@ export function TaskDetailSheet({
       const errorWithStatus = error as Error & { status?: number; isExpected?: boolean }
       const errorStatus = errorWithStatus?.status
       const isExpected = errorWithStatus?.isExpected === true
-      
+
       // Si la tarea no existe (404) o es un error esperado, no mostrar error en consola
-      const isTaskNotFound = errorMessage.includes('Tarea no encontrada') || 
-                            errorMessage.includes('no encontrada') ||
-                            errorStatus === 404 ||
-                            isExpected
-      
+      const isTaskNotFound = errorMessage.includes('Tarea no encontrada') ||
+        errorMessage.includes('no encontrada') ||
+        errorStatus === 404 ||
+        isExpected
+
       if (isTaskNotFound) {
         // Tarea no existe, simplemente establecer comentarios vacíos sin mostrar error
         setComments([])
         return
       }
-      
+
       // Para otros errores, mostrar en consola y toast
       console.error('Error loading comments:', error)
       toast.error('Error al cargar comentarios')
@@ -252,7 +252,7 @@ export function TaskDetailSheet({
   }
 
   const startEditComment = (comment: Comment) => {
-    setEditingCommentId(comment._id)
+    setEditingCommentId((comment as { _id?: string; id?: string })._id ?? (comment as { id?: string }).id ?? null)
     setEditCommentContent(comment.content)
   }
 
@@ -263,7 +263,7 @@ export function TaskDetailSheet({
 
   const handleSubmit = async () => {
     if (!title.trim()) return
-    
+
     setIsSubmitting(true)
     try {
       // Normalizar la fecha para evitar problemas de zona horaria
@@ -305,7 +305,7 @@ export function TaskDetailSheet({
     try {
       // Subir archivo a Google Cloud Storage
       const response = await api.upload<{ url: string }>('/api/upload/file', file)
-      
+
       const newAttachment: Attachment = {
         name: file.name,
         url: response.url,
@@ -320,13 +320,13 @@ export function TaskDetailSheet({
 
       // Guardar cambios automáticamente si la tarea ya existe
       if (task?._id) {
-        await onSave({ 
-           ...task, 
-           projectId: projectId === "none" ? undefined : projectId, // Mantener el projectId actual normalizado
-           attachments: updatedAttachments 
+        await onSave({
+          ...task,
+          projectId: projectId === "none" ? undefined : projectId, // Mantener el projectId actual normalizado
+          attachments: updatedAttachments
         })
       }
-      
+
       toast.success("Archivo adjunto correctamente")
     } catch (error) {
       console.error(error)
@@ -334,38 +334,38 @@ export function TaskDetailSheet({
     } finally {
       setIsUploading(false)
       // Limpiar input
-      e.target.value = '' 
+      e.target.value = ''
     }
   }
 
   const removeAttachment = async (index: number) => {
     const updatedAttachments = attachments.filter((_, i) => i !== index)
     setAttachments(updatedAttachments)
-    
+
     if (task?._id) {
-       await onSave({ 
-          ...task, 
-          projectId: projectId === "none" ? undefined : projectId,
-          attachments: updatedAttachments 
-       })
+      await onSave({
+        ...task,
+        projectId: projectId === "none" ? undefined : projectId,
+        attachments: updatedAttachments
+      })
     }
   }
 
   const handleAddTag = () => {
     const trimmedTag = newTag.trim()
     if (!trimmedTag) return
-    
+
     // Evitar duplicados
     if (tags.includes(trimmedTag.toLowerCase())) {
       toast.error("Esta etiqueta ya existe")
       setNewTag("")
       return
     }
-    
+
     const updatedTags = [...tags, trimmedTag.toLowerCase()]
     setTags(updatedTags)
     setNewTag("")
-    
+
     // Guardar automáticamente si la tarea ya existe
     if (task?._id) {
       onSave({
@@ -382,7 +382,7 @@ export function TaskDetailSheet({
   const handleRemoveTag = (tagToRemove: string) => {
     const updatedTags = tags.filter(t => t !== tagToRemove)
     setTags(updatedTags)
-    
+
     // Guardar automáticamente si la tarea ya existe
     if (task?._id) {
       onSave({
@@ -398,7 +398,7 @@ export function TaskDetailSheet({
 
   // Helper for status badge
   const getStatusColor = (s: string) => {
-    switch(s) {
+    switch (s) {
       case 'todo': return 'bg-gray-100 text-gray-700 hover:bg-gray-200'
       case 'in_progress': return 'bg-blue-100 text-blue-700 hover:bg-blue-200'
       case 'done': return 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -407,7 +407,7 @@ export function TaskDetailSheet({
   }
 
   const getPriorityColor = (p: string) => {
-    switch(p) {
+    switch (p) {
       case 'high': return 'text-red-600 bg-red-50 border-red-200'
       case 'medium': return 'text-orange-600 bg-orange-50 border-orange-200'
       case 'low': return 'text-blue-600 bg-blue-50 border-blue-200'
@@ -425,9 +425,9 @@ export function TaskDetailSheet({
         {/* Header / Toolbar */}
         <div className="h-14 border-b flex items-center justify-between px-4 bg-background/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className={cn("h-8 text-xs font-medium border-0 px-2.5", task?.status === 'done' && "bg-green-100 text-green-700")}
               onClick={() => setStatus(status === 'done' ? 'todo' : 'done')}
             >
@@ -436,33 +436,25 @@ export function TaskDetailSheet({
             </Button>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-              <LinkIcon className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] h-full">
-            
-            {/* Main Column */}
-            <div className="p-6 space-y-8">
-              {/* Title */}
+          <div className="max-w-4xl mx-auto p-6 md:p-8 space-y-8">
+
+            {/* Title & Status */}
+            <div className="space-y-6">
               <div className="space-y-4">
-                <Input 
+                <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="text-2xl font-bold border-none shadow-none p-0 h-auto focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50"
+                  className="text-3xl font-bold border-none shadow-none p-0 h-auto focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/40"
                   placeholder="Escribe el nombre de la tarea..."
                 />
-                
+
                 {/* Overdue Alert */}
                 {task?.isOverdue && status !== 'done' && (
                   <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -470,7 +462,7 @@ export function TaskDetailSheet({
                     <div className="flex-1 space-y-1">
                       <p className="text-sm font-semibold text-red-900">Esta tarea está atrasada</p>
                       <p className="text-xs text-red-700">
-                        {task.overdueAt 
+                        {task.overdueAt
                           ? `Marcada como atrasada ${format(new Date(task.overdueAt), "d 'de' MMMM 'a las' HH:mm", { locale: es })}`
                           : `La fecha de entrega era ${task.dueDate ? format(new Date(task.dueDate), "d 'de' MMMM", { locale: es }) : 'anterior'}`
                         }
@@ -478,34 +470,188 @@ export function TaskDetailSheet({
                     </div>
                   </div>
                 )}
-
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    en la lista 
-                    <Badge variant="secondary" className={cn("ml-1 capitalize font-normal rounded-sm", getStatusColor(status))}>
-                      {status === 'todo' ? 'Por hacer' : status === 'in_progress' ? 'En progreso' : 'Completado'}
-                    </Badge>
-                  </span>
-                </div>
               </div>
 
-              {/* Description */}
-              <div className="space-y-3">
+              {/* Modern Properties Grid - Linear Style */}
+              <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-y-4 gap-x-8 items-center">
+
+                {/* Status */}
+                <Label className="text-xs text-muted-foreground font-medium">Estado</Label>
+                <div className="flex items-center">
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger className="w-fit min-w-[140px] h-8 text-xs bg-background border border-border/60 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("h-2 w-2 rounded-full", status === 'done' ? "bg-emerald-500" : status === 'in_progress' ? "bg-blue-500" : "bg-zinc-400")} />
+                        <span className="capitalize">{status === 'done' ? 'Completada' : status === 'in_progress' ? 'En progreso' : 'Por hacer'}</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todo">Por hacer</SelectItem>
+                      <SelectItem value="in_progress">En progreso</SelectItem>
+                      <SelectItem value="done">Completada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Priority */}
+                <Label className="text-xs text-muted-foreground font-medium">Prioridad</Label>
+                <div className="flex items-center">
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger className="w-fit min-w-[140px] h-8 text-xs bg-background border border-border/60 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Flag className={cn("h-3.5 w-3.5", priority === 'high' ? "text-red-500 fill-red-500" : priority === 'medium' ? "text-orange-500" : "text-muted-foreground")} />
+                        <span className="capitalize">{priority === 'high' ? 'Alta' : priority === 'medium' ? 'Media' : 'Baja'}</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Baja</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Assignee */}
+                <Label className="text-xs text-muted-foreground font-medium">Asignado a</Label>
+                <div className="flex items-center">
+                  {isLoadingMembers ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Select value={assignedTo} onValueChange={async (value) => {
+                      setAssignedTo(value)
+                      if (task?._id) {
+                        // ... save logic (kept same as logic is inside component state/props)
+                        try {
+                          await onSave({
+                            ...task,
+                            projectId: projectId === "none" ? undefined : projectId,
+                            assignedTo: value === "none" ? undefined : (value as unknown as Task['assignedTo'])
+                          } as Partial<Task>)
+                        } catch (error) { console.error(error) }
+                      }
+                    }}>
+                      <SelectTrigger className="w-fit min-w-[140px] h-8 text-xs bg-background border border-border/60 shadow-sm">
+                        <div className="flex items-center gap-2 truncate max-w-[200px]">
+                          {/* User rendering logic simplified for display */}
+                          {assignedTo !== "none" ? (
+                            <div className="flex items-center gap-2">
+                              <User className="h-3.5 w-3.5 text-foreground/70" />
+                              <span>
+                                {(() => {
+                                  const member = members.find(m => (typeof m.userId === 'object' ? m.userId._id : '') === assignedTo);
+                                  if (member && typeof member.userId === 'object') {
+                                    return member.userId.name;
+                                  }
+                                  return (owner?._id === assignedTo ? owner.name : 'Usuario');
+                                })()}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Sin asignar</span>
+                          )}
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin asignar</SelectItem>
+                        {owner && <SelectItem value={owner._id}>{owner.name}</SelectItem>}
+                        {members.map((member) => {
+                          const u = typeof member.userId === 'object' ? member.userId : null;
+                          if (!u || (owner && owner._id === u._id)) return null;
+                          return <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {/* Project */}
+                <Label className="text-xs text-muted-foreground font-medium">Proyecto</Label>
+                <div className="flex items-center">
+                  <Select value={projectId} onValueChange={setProjectId}>
+                    <SelectTrigger className="w-fit min-w-[140px] h-8 text-xs bg-background border border-border/60 shadow-sm">
+                      <div className="flex items-center gap-2 truncate max-w-[200px]">
+                        <FolderKanban className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="truncate">
+                          {projects.find(p => p._id === projectId)?.name || "Sin proyecto"}
+                        </span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin proyecto</SelectItem>
+                      {projects.map(p => (
+                        <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Due Date */}
+                <Label className="text-xs text-muted-foreground font-medium">Fecha de entrega</Label>
+                <div className="flex items-center">
+                  <div className="relative group">
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="w-fit min-w-[140px] h-8 text-xs bg-background border border-border/60 shadow-sm pl-8"
+                    />
+                    <CalendarIcon className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors pointer-events-none" />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Estimated Time (Optional Row) */}
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Descripción</h3>
-                </div>
-                <div className="border rounded-md overflow-hidden bg-background shadow-sm min-h-[200px]">
-                  <LexicalEditor
-                    initialValue={description}
-                    onChange={setDescription}
-                    placeholder="Añade una descripción detallada..."
-                    className="h-full"
-                  />
+                  <Clock className="h-4 w-4" />
+                  <span className="text-xs font-semibold uppercase">Tiempo Estimado:</span>
+                  <div className="flex items-center gap-2 w-32">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      className="h-7 bg-transparent border-b border-0 rounded-none px-0 text-center focus-visible:ring-0"
+                      placeholder="0"
+                    />
+                    <span>h</span>
+                    <Input
+                      type="number" min="0" max="59"
+                      value={minutes}
+                      onChange={(e) => setMinutes(e.target.value)}
+                      className="h-7 bg-transparent border-b border-0 rounded-none px-0 text-center focus-visible:ring-0"
+                      placeholder="00"
+                    />
+                    <span>m</span>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              {/* Attachments Section */}
+            <Separator />
+
+            {/* Description */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-muted-foreground/70" />
+                <h3 className="font-semibold text-base">Descripción</h3>
+              </div>
+              <div className="min-h-[150px] border border-transparent hover:border-border rounded-md transition-colors">
+                <LexicalEditor
+                  initialValue={description}
+                  onChange={setDescription}
+                  placeholder="Escribe una descripción más detallada..."
+                  className="h-full min-h-[150px]"
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Attachments & Tags Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Attachments */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -523,521 +669,190 @@ export function TaskDetailSheet({
                       htmlFor="file-upload"
                       className="cursor-pointer text-xs font-medium px-2 py-1 rounded-md bg-secondary hover:bg-secondary/80 text-secondary-foreground flex items-center gap-1 transition-colors"
                     >
-                      {isUploading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <PlusIcon className="h-3.5 w-3.5" />
-                      )}
-                      {isUploading ? "Subiendo..." : "Añadir"}
+                      {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                      Adjuntar
                     </Label>
                   </div>
                 </div>
 
-                {/* Attachments List */}
                 {attachments.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="space-y-2">
                     {attachments.map((file, index) => (
-                      <div key={index} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20 group hover:bg-muted/40 transition-colors">
-                        {/* Icono según tipo */}
-                        <div className="h-10 w-10 rounded bg-background flex items-center justify-center shrink-0 border overflow-hidden">
+                      <div key={index} className="flex items-center gap-3 p-2 rounded-md border bg-muted/20 hover:bg-muted/40 transition-colors group">
+                        <div className="h-8 w-8 rounded bg-background flex items-center justify-center shrink-0 border overflow-hidden">
                           {file.type.includes('image') ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={file.url} alt={file.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                          )}
+                          ) : <FileText className="h-4 w-4 text-muted-foreground" />}
                         </div>
-                        
                         <div className="flex-1 min-w-0 overflow-hidden">
-                          <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{(file.size / 1024).toFixed(1)} KB</span>
-                            <span>•</span>
-                            <span>{format(new Date(file.uploadedAt), "d MMM, yy", { locale: es })}</span>
-                          </div>
+                          <p className="text-xs font-medium truncate" title={file.name}>{file.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
                         </div>
-
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <a 
-                            href={file.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="p-1.5 hover:bg-background rounded-md text-muted-foreground hover:text-primary transition-colors"
-                            title="Descargar / Ver"
-                          >
-                            <Download className="h-4 w-4" />
-                          </a>
-                          <button
-                            onClick={() => removeAttachment(index)}
-                            className="p-1.5 hover:bg-background rounded-md text-muted-foreground hover:text-destructive transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                        <button onClick={() => removeAttachment(index)} className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-all">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground italic pl-1">
-                    No hay archivos adjuntos.
-                  </div>
-                )}
+                ) : <p className="text-xs text-muted-foreground/50 italic">No hay archivos.</p>}
               </div>
 
-              {/* Tags Section */}
+              {/* Tags */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
                     <Tag className="h-4 w-4 text-muted-foreground" /> Etiquetas
                   </h3>
                 </div>
-
-                {/* Tags List */}
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="gap-1 pr-1"
-                      >
-                        <Tag className="h-3 w-3" />
-                        {tag}
-                        <button
-                          onClick={() => handleRemoveTag(tag)}
-                          className="ml-1 hover:text-destructive transition-colors"
-                          title="Eliminar etiqueta"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1 pr-1 group">
+                      {tag}
+                      <button onClick={() => handleRemoveTag(tag)} className="hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  <div className="flex items-center gap-1">
+                    <Input
+                      placeholder="Nueva etiqueta..."
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                      className="h-6 w-24 text-xs bg-transparent border-b border-0 rounded-none px-0 focus-visible:ring-0"
+                    />
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleAddTag} disabled={!newTag.trim()}>
+                      <Plus className="h-3 w-3" />
+                    </Button>
                   </div>
-                )}
-
-                {/* Add Tag Input */}
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Agregar etiqueta..."
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        handleAddTag()
-                      }
-                    }}
-                    className="text-sm"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleAddTag}
-                    disabled={!newTag.trim()}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
+            </div>
 
-              {/* Activity / Comments */}
-              <div className="pt-6 border-t">
-                <div className="flex items-center gap-2 mb-4">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="font-semibold text-sm">Comentarios ({comments.length})</h3>
-                </div>
+            <Separator />
 
+            {/* Comments & Activity */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium text-muted-foreground">Actividad</h3>
+              </div>
+
+              <div className="space-y-6">
                 {/* Comments List */}
                 {isLoadingComments ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : comments.length > 0 ? (
-                  <div className="space-y-4 mb-6">
-                    {comments.map((comment) => {
-                      const isAuthor = comment.userId._id === user?._id
-                      const isEditing = editingCommentId === comment._id
-                      
-                      // Verificar si el comentario tiene menos de 15 minutos
-                      const commentAge = Date.now() - new Date(comment.createdAt).getTime()
-                      const FIFTEEN_MINUTES = 15 * 60 * 1000 // 15 minutos en milisegundos
-                      const canEditOrDelete = isAuthor && commentAge <= FIFTEEN_MINUTES
+                  <div className="py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                ) : comments.map((comment, index) => {
+                  const commentId = comment._id ?? (comment as { id?: string }).id ?? `comment-${index}`
+                  const isAuthor = typeof comment.userId === 'object' && comment.userId._id === user?._id
+                  const isEditing = editingCommentId === comment._id || editingCommentId === (comment as { id?: string }).id
 
-                      return (
-                        <div key={comment._id} className="flex gap-3 group">
-                          <Avatar className="h-8 w-8 flex-shrink-0">
-                            {comment.userId.avatar && comment.userId.avatar.trim() !== "" ? (
-                              <AvatarImage src={comment.userId.avatar} alt={comment.userId.name} />
-                            ) : null}
-                            <AvatarFallback className="text-xs">
-                              {comment.userId.name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            {isEditing ? (
-                              <div className="space-y-2">
-                                <Input
-                                  value={editCommentContent}
-                                  onChange={(e) => setEditCommentContent(e.target.value)}
-                                  className="text-sm"
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && e.metaKey) {
-                                      handleUpdateComment(comment._id)
-                                    }
-                                    if (e.key === 'Escape') {
-                                      cancelEdit()
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <div className="flex gap-2">
-                                  <Button size="sm" onClick={() => handleUpdateComment(comment._id)}>
-                                    Guardar
-                                  </Button>
-                                  <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                                    Cancelar
-                                  </Button>
-                                </div>
+                  const commentAge = Date.now() - new Date(comment.createdAt).getTime()
+                  const FIFTEEN_MINUTES = 15 * 60 * 1000
+                  const canEditOrDelete = isAuthor && commentAge <= FIFTEEN_MINUTES
+
+                  // Safe user access
+                  const commentUser = typeof comment.userId === 'object' ? comment.userId : { name: 'Usuario desconocido', avatar: undefined }
+
+                  return (
+                    <div key={commentId} className="flex gap-3 group">
+                      <Avatar className="h-6 w-6 mt-0.5 border border-border/50">
+                        {commentUser.avatar && commentUser.avatar.trim() !== "" ? (
+                          <AvatarImage src={commentUser.avatar} alt={commentUser.name} />
+                        ) : null}
+                        <AvatarFallback className="text-[9px]">
+                          {commentUser.name?.slice(0, 2).toUpperCase() || "??"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-sm text-foreground/90">{commentUser.name}</span>
+                          <span className="text-xs text-muted-foreground">{format(new Date(comment.createdAt), "d MMM HH:mm", { locale: es })}</span>
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <Input
+                                value={editCommentContent}
+                                onChange={(e) => setEditCommentContent(e.target.value)}
+                                className="text-sm bg-background min-h-[60px] py-2 px-3 resize-none"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && e.metaKey) handleUpdateComment(commentId)
+                                  if (e.key === 'Escape') cancelEdit()
+                                }}
+                                autoFocus
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-7 text-xs" onClick={() => handleUpdateComment(commentId)}>Guardar</Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={cancelEdit}>Cancelar</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="group/comment relative">
+                            <div className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{comment.content}</div>
+                            {canEditOrDelete && (
+                              <div className="absolute -right-2 -top-6 flex gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity bg-background border rounded-md shadow-sm p-0.5">
+                                <button onClick={() => startEditComment(comment)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors" title="Editar">
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                                <button onClick={() => handleDeleteComment(commentId)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive transition-colors" title="Eliminar">
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
                               </div>
-                            ) : (
-                              <>
-                                <div className="bg-muted/30 rounded-lg p-3">
-                                  <div className="flex items-start justify-between gap-2 mb-1">
-                                    <div>
-                                      <span className="text-sm font-semibold">{comment.userId.name}</span>
-                                      <span className="text-xs text-muted-foreground ml-2">
-                                        {format(new Date(comment.createdAt), "d MMM, yyyy 'a las' HH:mm", { locale: es })}
-                                        {comment.editedAt && " (editado)"}
-                                      </span>
-                                    </div>
-                                    {canEditOrDelete && (
-                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6"
-                                          onClick={() => startEditComment(comment)}
-                                          title="Editar comentario"
-                                        >
-                                          <Edit2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-destructive"
-                                          onClick={() => handleDeleteComment(comment._id)}
-                                          title="Eliminar comentario"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
-                                </div>
-                              </>
                             )}
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground italic mb-6">
-                    No hay comentarios aún. Sé el primero en comentar.
-                  </div>
-                )}
-
-                {/* Add Comment Form */}
-                {task?._id && (
-                  <div className="flex gap-3">
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                      {user?.avatar && user.avatar.trim() !== "" ? (
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                      ) : null}
-                      <AvatarFallback className="text-xs">
-                        {user?.name?.slice(0, 2).toUpperCase() || "YO"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-2">
-                      <div className="border rounded-lg p-3 bg-background shadow-sm">
-                        <Input
-                          placeholder="Escribe un comentario..."
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.metaKey && newComment.trim()) {
-                              handleAddComment()
-                            }
-                          }}
-                          className="border-0 p-0 shadow-none focus-visible:ring-0 h-auto text-sm"
-                          disabled={isSubmittingComment}
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex gap-1">
-                          <span className="text-xs text-muted-foreground">
-                            Presiona Cmd/Ctrl + Enter para comentar
-                          </span>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          onClick={handleAddComment}
-                          disabled={!newComment.trim() || isSubmittingComment}
-                        >
-                          {isSubmittingComment ? (
-                            <>
-                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                              Enviando...
-                            </>
-                          ) : (
-                            "Comentar"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar Column */}
-            <div className="bg-muted/10 border-l p-6 space-y-6">
-              
-              {/* Project */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Proyecto</label>
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger className="w-full bg-background border-0 shadow-sm hover:bg-accent/50 transition-colors">
-                    <div className="flex items-center gap-2 truncate">
-                      <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                      <span className="truncate">
-                        {projects.find(p => p._id === projectId)?.name || "Sin proyecto"}
-                      </span>
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin proyecto</SelectItem>
-                    {projects.map(p => (
-                      <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Assignee */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Responsable</label>
-                {isLoadingMembers ? (
-                  <div className="flex items-center gap-2 p-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Cargando miembros...</span>
-                  </div>
-                ) : (
-                  <Select value={assignedTo} onValueChange={async (value) => {
-                    setAssignedTo(value)
-                    // Guardar automáticamente si la tarea ya existe
-                    if (task?._id) {
-                      try {
-                        await onSave({
-                          ...task,
-                          projectId: projectId === "none" ? undefined : projectId,
-                          assignedTo: value === "none" ? undefined : (value as unknown as Task['assignedTo'])
-                        } as Partial<Task>)
-                      } catch (error) {
-                        console.error('Error updating assignee:', error)
-                      }
-                    }
-                  }}>
-                    <SelectTrigger className="w-full bg-background border-0 shadow-sm hover:bg-accent/50 transition-colors">
-                      <div className="flex items-center gap-2 truncate">
-                        {assignedTo !== "none" ? (
-                          <>
-                            {(() => {
-                              // Buscar en miembros
-                              let userData: { _id: string; name: string; email: string; avatar?: string } | null = null
-                              const member = members.find(m => {
-                                const u = typeof m.userId === 'object' ? m.userId : null
-                                return u && u._id === assignedTo
-                              })
-                              if (member && typeof member.userId === 'object') {
-                                userData = member.userId
-                              } else if (owner && owner._id === assignedTo) {
-                                userData = owner
-                              }
-                              
-                              return userData ? (
-                                <>
-                                  <Avatar className="h-5 w-5">
-                                    {userData.avatar && userData.avatar.trim() !== "" ? (
-                                      <AvatarImage src={userData.avatar} alt={userData.name} />
-                                    ) : null}
-                                    <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                      {userData.name?.slice(0, 2).toUpperCase() || "U"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="truncate">{userData.name || "Usuario"}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <User className="h-4 w-4 text-muted-foreground" />
-                                  <span className="truncate">Usuario</span>
-                                </>
-                              )
-                            })()}
-                          </>
-                        ) : (
-                          <>
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="truncate">Sin asignar</span>
-                          </>
                         )}
                       </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          Sin asignar
-                        </span>
-                      </SelectItem>
-                      {/* Incluir owner si existe */}
-                      {owner && (
-                          <SelectItem value={owner._id}>
-                            <span className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                {owner.avatar && owner.avatar.trim() !== "" ? (
-                                  <AvatarImage src={owner.avatar} alt={owner.name} />
-                                ) : null}
-                                <AvatarFallback className="text-[9px]">
-                                  {owner.name?.slice(0, 2).toUpperCase() || "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                              {owner.name} (Owner)
-                            </span>
-                          </SelectItem>
-                      )}
-                      {members.map((member) => {
-                        const userData = typeof member.userId === 'object' ? member.userId : null
-                        if (!userData) return null
-                        // Evitar duplicar el owner si ya está en la lista de miembros
-                        if (owner && owner._id === userData._id) return null
-                        const userId = userData._id
-                        return (
-                          <SelectItem key={userId} value={userId}>
-                            <span className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                {userData.avatar && userData.avatar.trim() !== "" ? (
-                                  <AvatarImage src={userData.avatar} alt={userData.name} />
-                                ) : null}
-                                <AvatarFallback className="text-[9px]">
-                                  {userData.name?.slice(0, 2).toUpperCase() || "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                              {userData.name || "Usuario"}
-                            </span>
-                          </SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              {/* Due Date */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha de entrega</label>
-                <div className="relative">
-                  <Input 
-                    type="date" 
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="bg-background border-0 shadow-sm hover:bg-accent/50 pl-9"
-                  />
-                  <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Estimated Time */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tiempo estimado</label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Input 
-                      type="number"
-                      min="0"
-                      value={hours}
-                      onChange={(e) => setHours(e.target.value)}
-                      className="bg-background border-0 shadow-sm hover:bg-accent/50 pl-9"
-                      placeholder="0"
-                    />
-                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none font-medium">h</span>
-                  </div>
-                  <span className="text-muted-foreground font-medium">:</span>
-                  <div className="relative flex-1">
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="59"
-                      value={minutes}
-                      onChange={(e) => setMinutes(e.target.value)}
-                      className="bg-background border-0 shadow-sm hover:bg-accent/50 pl-3 pr-7"
-                      placeholder="00"
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none font-medium">m</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Priority */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Prioridad</label>
-                <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger className={cn("w-full border-0 shadow-sm transition-colors", getPriorityColor(priority))}>
-                    <div className="flex items-center gap-2">
-                      <Flag className={cn("h-4 w-4", priority === 'high' && "fill-current")} />
-                      <SelectValue />
                     </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Baja</SelectItem>
-                    <SelectItem value="medium">Media</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                  </SelectContent>
-                </Select>
+                  )
+                })}
+
+                {/* Add Comment Input */}
+                <div className="flex gap-3 pt-2">
+                  <Avatar className="h-6 w-6 mt-2">
+                    <AvatarImage src={user?.avatar} />
+                    <AvatarFallback className="text-[9px]">{user?.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Escribe un comentario..."
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
+                      className="bg-muted/30 border-transparent focus:bg-background focus:border-border transition-all min-h-[40px] py-2 text-sm"
+                    />
+                    {newComment.trim() && (
+                      <div className="absolute right-1 top-1">
+                        <Button
+                          size="sm"
+                          className="h-7 px-3 text-xs"
+                          onClick={handleAddComment}
+                          disabled={isSubmittingComment}
+                        >
+                          Enviar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              {/* Metadata Readonly */}
-              <Separator />
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Creada</span>
-                  <span>{task?.createdAt ? format(new Date(task.createdAt), "d MMM, p", { locale: es }) : "Ahora"}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>ID</span>
-                  <span className="font-mono select-all">#{task?._id?.slice(-4).toUpperCase() || "NEW"}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {task && onDelete && (
-                <div className="pt-4 mt-auto">
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onDelete(task)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Eliminar tarea
-                  </Button>
-                </div>
-              )}
-
             </div>
+
+            {/* Delete Button (moved to bottom, more subtle) */}
+            {task && onDelete && (
+              <div className="pt-6">
+                <Button
+                  variant="ghost"
+                  className="h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 w-full justify-start px-2"
+                  onClick={() => onDelete(task)}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Eliminar tarea
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

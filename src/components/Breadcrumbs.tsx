@@ -31,11 +31,15 @@ export function Breadcrumbs() {
 
     return (
         <Breadcrumb className="hidden sm:block">
-            <BreadcrumbList>
+            <BreadcrumbList className="text-sm">
                 <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                        <Link href="/dashboard" className="flex items-center gap-1">
-                            <Home className="h-3.5 w-3.5" />
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            <Home className="h-3.5 w-3.5 shrink-0" />
+                            <span>Inicio</span>
                         </Link>
                     </BreadcrumbLink>
                 </BreadcrumbItem>
@@ -47,15 +51,17 @@ export function Breadcrumbs() {
 
                     return (
                         <React.Fragment key={path}>
-                            <BreadcrumbSeparator />
+                            <BreadcrumbSeparator className="text-muted-foreground/60" />
                             <BreadcrumbItem>
                                 {isLast ? (
-                                    <BreadcrumbPage className="font-medium text-foreground">
+                                    <BreadcrumbPage className="font-semibold text-foreground">
                                         {label}
                                     </BreadcrumbPage>
                                 ) : (
                                     <BreadcrumbLink asChild>
-                                        <Link href={href}>{label}</Link>
+                                        <Link href={href} className="text-muted-foreground hover:text-foreground transition-colors">
+                                            {label}
+                                        </Link>
                                     </BreadcrumbLink>
                                 )}
                             </BreadcrumbItem>

@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { TaskCard } from "./TaskCard"
 import { KanbanColumn, type KanbanColumnData } from "./KanbanColumn"
 import { AddColumnButton } from "./AddColumnButton"
 import { type Task, projectsApi } from "@/lib/api"
-import { cn } from "@/lib/utils"
 import { nanoid } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -21,18 +20,22 @@ interface KanbanBoardProps {
   availableMembers?: Array<{ userId: { _id: string; name: string; email: string; avatar?: string } | string; role: string }>
   owner?: { _id: string; name: string; email: string; avatar?: string } | null
   currentUserId?: string
-  projectId?: string
+  projectId?: string // Opcional: si no se proporciona, usa columnas basadas en status
 }
 
-// Columnas por defecto
-const DEFAULT_COLUMNS: KanbanColumnData[] = [
-  { id: 'todo', title: 'Por hacer', color: '#6b7280' },
-  { id: 'in_progress', title: 'En progreso', color: '#3b82f6' },
-  { id: 'done', title: 'Completado', color: '#22c55e' }
+// Secciones por defecto para inicializar proyectos nuevos
+const DEFAULT_SECTIONS = [
+  { title: 'Por hacer', color: '#6b7280' },
+  { title: 'En progreso', color: '#3b82f6' },
+  { title: 'Completado', color: '#22c55e' }
 ]
 
-// Key para localStorage
-const COLUMNS_STORAGE_KEY = 'nexoscribe-kanban-columns'
+// Columnas basadas en status para vista "All Projects"
+const STATUS_COLUMNS: KanbanColumnData[] = [
+  { id: 'todo', title: 'Por hacer', color: '#6b7280', order: 0 },
+  { id: 'in_progress', title: 'En progreso', color: '#3b82f6', order: 1 },
+  { id: 'done', title: 'Completado', color: '#22c55e', order: 2 }
+]
 
 export function KanbanBoard({
   tasks,
@@ -51,102 +54,93 @@ export function KanbanBoard({
   // Estado de columnas
   const [columns, setColumns] = useState<KanbanColumnData[]>([])
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
-  const [tasksByColumn, setTasksByColumn] = useState<{ [key: string]: Task[] }>({})
 
-  // Cargar columnas
+  // Cargar columnas (secciones de proyecto o status-based)
   useEffect(() => {
     async function loadColumns() {
-      if (projectId) {
-        try {
-          const response = await projectsApi.getById(projectId)
-          if (response.project.sections && response.project.sections.length > 0) {
-            setColumns(response.project.sections.map(s => ({
-              id: s._id,
-              title: s.name,
-              color: '#3b82f6', // TODO: Save color in backend
-              order: s.order
-            })).sort((a, b) => (a.order || 0) - (b.order || 0)))
-          } else {
-            // Si no hay secciones, inicializar por defecto? O dejar vacío?
-            // Dejamos vacío o tal vez inicializamos en el backend al crear proyecto
-            setColumns([])
-          }
-        } catch (error) {
-          console.error("Error loading project sections:", error)
-        }
-      } else {
-        // Global view: Local Storage
-        const savedColumns = localStorage.getItem(COLUMNS_STORAGE_KEY)
-        if (savedColumns) {
-          try {
-            const parsed = JSON.parse(savedColumns)
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setColumns(parsed)
-            } else {
-              setColumns(DEFAULT_COLUMNS)
+      // Si no hay projectId, usar columnas basadas en status
+      if (!projectId) {
+        setColumns(STATUS_COLUMNS)
+        return
+      }
+
+      try {
+        const response = await projectsApi.getById(projectId)
+
+        // Si el proyecto no tiene secciones, las creamos por defecto
+        if (!response.project.sections || response.project.sections.length === 0) {
+          console.log("Inicializando secciones por defecto para el proyecto...")
+          const createdSections: KanbanColumnData[] = []
+
+          for (const defSection of DEFAULT_SECTIONS) {
+            try {
+              const res = await projectsApi.addSection(projectId, {
+                name: defSection.title,
+                color: defSection.color
+              })
+              if (res.project.sections) {
+                const s = res.project.sections[res.project.sections.length - 1]
+                createdSections.push({
+                  id: s._id,
+                  title: s.name,
+                  color: defSection.color,
+                  order: s.order
+                })
+              }
+            } catch (err) {
+              console.error("Error creating default section:", err)
             }
-          } catch {
-            setColumns(DEFAULT_COLUMNS)
           }
+          setColumns(createdSections.sort((a, b) => (a.order || 0) - (b.order || 0)))
         } else {
-          setColumns(DEFAULT_COLUMNS)
+          setColumns(response.project.sections.map(s => ({
+            id: s._id,
+            title: s.name,
+            color: '#3b82f6', // Color por defecto si no viene del backend
+            order: s.order,
+            wipLimit: s.limit
+          })).sort((a, b) => (a.order || 0) - (b.order || 0)))
         }
+      } catch (error) {
+        console.error("Error loading project sections:", error)
+        toast.error("Error al cargar las columnas del tablero")
       }
     }
     loadColumns()
   }, [projectId])
 
-  // Guardar columnas en localStorage solo si NO es project view
-  useEffect(() => {
-    if (!projectId) {
-      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(columns))
-    }
-  }, [columns, projectId])
-
-  // Agrupar tareas por columna
-  useEffect(() => {
+  // Agrupar tareas por columna (estado derivado)
+  const tasksByColumn = useMemo(() => {
     const newTasksByColumn: { [key: string]: Task[] } = {}
 
-    // Inicializar todas las columnas
     columns.forEach(col => {
       newTasksByColumn[col.id] = []
     })
 
-    // Distribuir tareas
     tasks.forEach(task => {
-      // Si estamos en proyecto, usar sectionId. Si no, usar status.
-      // PERO: Si la tarea no tiene sectionId (legacy), fallback a un mapeo inteligente?
-      let columnId = 'todo'
+      let columnId: string
 
-      if (projectId) {
-        if (task.sectionId) {
-          columnId = task.sectionId
-        } else {
-          // Fallback para tareas viejas sin sectionId: Mapear status a columnas si tienen nombres similares?
-          // O simplemente ponerlas en la primera columna
-          columnId = columns[0]?.id || 'todo'
-        }
+      if (!projectId) {
+        columnId = task.status
       } else {
-        columnId = task.status || 'todo'
+        columnId = task.sectionId || ''
+        if (!columnId && columns.length > 0) {
+          columnId = columns[0].id
+        }
       }
 
       if (newTasksByColumn[columnId]) {
         newTasksByColumn[columnId].push(task)
       } else {
-        // Fallback a primera columna si el target no existe
-        const firstColumn = columns[0]?.id || 'todo'
-        if (newTasksByColumn[firstColumn]) {
-          newTasksByColumn[firstColumn].push(task)
-        }
+        console.warn(`Task ${task._id} has invalid columnId: ${columnId}`)
       }
     })
 
-    // Ordenar por posición
     Object.keys(newTasksByColumn).forEach(key => {
       newTasksByColumn[key].sort((a, b) => a.position - b.position)
     })
 
-    setTasksByColumn(newTasksByColumn)
+    return newTasksByColumn
   }, [tasks, columns, projectId])
 
   // Handlers para columnas
@@ -180,27 +174,33 @@ export function KanbanBoard({
   }, [projectId])
 
   const handleUpdateColumn = useCallback(async (id: string, updates: Partial<KanbanColumnData>) => {
-    if (projectId) {
-      // Backend update
-      try {
-        await projectsApi.updateSection(projectId, id, {
-          name: updates.title,
-          limit: updates.wipLimit
-        })
-        setColumns(prev => prev.map(col =>
-          col.id === id ? { ...col, ...updates } : col
-        ))
-      } catch {
-        toast.error("Error al actualizar sección")
-      }
-    } else {
+    // No permitir edición de columnas en modo global
+    if (!projectId) {
+      toast.error("No se pueden editar columnas en vista global")
+      return
+    }
+
+    // Backend update
+    try {
+      await projectsApi.updateSection(projectId, id, {
+        name: updates.title,
+        limit: updates.wipLimit
+      })
       setColumns(prev => prev.map(col =>
         col.id === id ? { ...col, ...updates } : col
       ))
+    } catch {
+      toast.error("Error al actualizar sección")
     }
   }, [projectId])
 
   const handleDeleteColumn = useCallback(async (id: string) => {
+    // No permitir eliminación de columnas en modo global
+    if (!projectId) {
+      toast.error("No se pueden eliminar columnas en vista global")
+      return
+    }
+
     if (columns.length <= 1) return
 
     if (projectId) {
@@ -360,8 +360,8 @@ export function KanbanBoard({
         </KanbanColumn>
       ))}
 
-      {/* Botón para agregar nueva columna */}
-      <AddColumnButton onAdd={handleAddColumn} />
+      {/* Botón para agregar nueva columna (solo en modo proyecto) */}
+      {projectId && <AddColumnButton onAdd={handleAddColumn} />}
     </div>
   )
 }

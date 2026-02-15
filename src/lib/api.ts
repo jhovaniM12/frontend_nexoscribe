@@ -17,7 +17,7 @@ export const api = {
     };
 
     // Inyectar x-org-id si existe
-    if (currentOrgId) {
+    if (currentOrgId && currentOrgId !== 'undefined' && currentOrgId !== 'null') {
       headers['x-org-id'] = currentOrgId;
     }
 
@@ -50,12 +50,22 @@ export const api = {
 
     if (!response.ok) {
       let errorMessage = `Error: ${response.statusText}`
+      let errorData: Record<string, unknown> = {};
 
       try {
-        const errorData = await response.json()
-        errorMessage = errorData.error || errorData.message || errorMessage
+        errorData = await response.json()
+        const msg = errorData.error ?? errorData.message
+        errorMessage = typeof msg === 'string' ? msg : errorMessage
+
+        // Log detailed error for debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.error('API Error Status:', response.status);
+          console.error('API Error Body:', errorData);
+        }
       } catch {
-        // Si JSON parsing falla, usar mensaje por defecto
+        if (process.env.NODE_ENV === 'development') {
+          console.error('API JSON Parse Failed. Status:', response.status);
+        }
       }
 
       // Crear error con más información
@@ -114,13 +124,13 @@ export const api = {
     }
 
     const url = `${API_URL}${endpoint}`
-    const currentOrgId = typeof window !== 'undefined' ? localStorage.getItem('currentOrgId') : null;
+    // const currentOrgId = typeof window !== 'undefined' ? localStorage.getItem('currentOrgId') : null;
 
     const headers: Record<string, string> = {};
 
-    if (currentOrgId) {
-      headers['x-org-id'] = currentOrgId;
-    }
+    // if (currentOrgId) {
+    //   headers['x-org-id'] = currentOrgId;
+    // }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -145,19 +155,29 @@ export const api = {
 // Tipos de Organizaciones
 export interface Organization {
   _id: string
+  id?: string
   name: string
   slug: string
   type: 'personal' | 'business'
   logo?: string
   role: 'owner' | 'admin' | 'editor' | 'viewer'
   isOwner: boolean
-  members?: { _id: string; role: string; user: any }[]
+  members?: { _id: string; id?: string; role: string; user: Record<string, unknown> }[]
 }
 
 // API de organizaciones
 export const organizationApi = {
-  getUserOrganizations: () =>
-    api.get<{ organizations: Organization[] }>('/api/organization/user-organizations'),
+  getUserOrganizations: async () => {
+    const response = await api.get<{ organizations: Organization[] }>('/api/organization/user-organizations');
+    return {
+      ...response,
+      organizations: (response.organizations || []).map(o => ({
+        ...o,
+        _id: o._id || (o as Organization & { id?: string }).id || '',
+        members: (o.members || []).map(m => ({ ...m, _id: m._id || (m as { _id?: string; id?: string }).id || '' }))
+      }))
+    };
+  },
 
   create: (data: { name: string, type?: 'personal' | 'business' }) =>
     api.post<{ message: string; organization: Organization }>('/api/organization/create', data),
@@ -174,6 +194,9 @@ export const organizationApi = {
       owner: { _id: string; name: string; email: string; avatar?: string } | null;
       pendingInvitations: Array<{ _id: string; email: string; role: string; invitedBy: { _id: string; name: string } }>
     }>(`/api/organization/${organizationId}/members`),
+
+  setActive: (orgId: string) =>
+    api.put<{ message: string; organizationId: string }>('/api/users/active-organization', { orgId }),
 }
 
 // Tipos de autenticación
@@ -201,6 +224,7 @@ export interface LoginResponse {
     isActive: boolean
     avatar?: string
   }
+  activeOrganizationId?: string
 }
 
 // API de autenticación
@@ -210,7 +234,7 @@ export const authApi = {
   logout: () =>
     api.post<{ message: string }>('/api/logout'),
   getMe: () =>
-    api.get<{ user: LoginResponse['user'] }>('/api/me'),
+    api.get<{ user: LoginResponse['user']; activeOrganizationId?: string }>('/api/me'),
   register: (data: RegisterRequest) =>
     api.post<{ message: string; user: unknown }>('/api/register', data),
 
@@ -225,46 +249,87 @@ export const authApi = {
 }
 
 // Tipos para Dashboard
+export interface DashboardRecentProject {
+  id: string
+  _id?: string
+  name: string
+  progress: number
+  tasksTotal: number
+  tasksCompleted: number
+  status: string
+  lead?: { id: string; name: string; avatarUrl: string | null }
+}
+
+export interface DashboardTaskItem {
+  id: string
+  _id?: string
+  title: string
+  status: string
+  dueDate: string | null
+  projectId: string | null
+  projectName: string | null
+}
+
+export interface DashboardActivityItem {
+  id: string
+  type: 'task_created' | 'project_created' | 'note_created' | 'comment_added' | 'whiteboard_created' | 'profile_updated'
+  actorName: string
+  actorAvatarUrl?: string | null
+  entityTitle: string
+  entityType: string
+  createdAt: string
+}
+
 export interface DashboardStatsResponse {
   stats: {
     activeProjects: number
     pendingTasks: number
     createdNotes: number
+    tasksForTomorrow: number
+    totalProjects?: number
+    completedProjects?: number
+    totalTasks?: number
+    completedTasks?: number
   }
-  recentProjects: {
-    _id: string
-    name: string
-    progress: number
-    tasksTotal: number
-    tasksCompleted: number
-  }[]
-  upcomingTasks: Task[]
+  recentProjects: DashboardRecentProject[]
+  upcomingTasks: DashboardTaskItem[]
+  tasksForToday: DashboardTaskItem[]
+  activityFeed: DashboardActivityItem[]
+  weeklyCompletedTasks?: { day: number; count: number }[]
+  recentNotes?: { id: string; title: string; updatedAt: string }[]
 }
 
 // API de Dashboard
 export const dashboardApi = {
-  getStats: () =>
-    api.get<DashboardStatsResponse>('/api/dashboard/stats'),
+  getStats: async (): Promise<DashboardStatsResponse> => {
+    const response = await api.get<DashboardStatsResponse>('/api/dashboard/stats');
+    return {
+      ...response,
+      recentProjects: (response.recentProjects || []).map(p => ({ ...p, _id: p._id ?? p.id })),
+      upcomingTasks: (response.upcomingTasks || []).map(t => ({ ...t, _id: t._id ?? t.id })),
+      tasksForToday: (response.tasksForToday || []).map(t => ({ ...t, _id: t._id ?? t.id }))
+    };
+  },
 }
 
 // Tipos de notas
 export interface Note {
   _id: string
+  id?: string
   title: string
   content: string
-  tags: string[]
-  folderId?: string | { _id: string; name: string } | null
+  folderId?: string | { _id: string; name: string; color: string } | null
   userId: string
+  organizationId: string
+  tags?: string[]
+  isPinned: boolean
+  isArchived: boolean
+  isPublic: boolean
+  publicToken?: string
+  publicExpiresAt?: string
+  allowComments: boolean
   createdAt: string
   updatedAt: string
-  // Public sharing fields
-  isPublic?: boolean
-  publicToken?: string | null
-  publicExpiresAt?: string | null
-  allowComments?: boolean
-  // Organization fields
-  isPinned?: boolean
-  isArchived?: boolean
 }
 
 export interface CreateNoteRequest {
@@ -303,23 +368,32 @@ export interface PublicNote {
 
 // API de notas
 export const notesApi = {
-  getAll: (options?: { folderId?: string | null; archived?: boolean; pinned?: boolean }) => {
+  getAll: async (filters?: { folderId?: string | null; archived?: boolean; pinned?: boolean }) => {
     const params = new URLSearchParams();
-    if (options?.folderId !== undefined) {
-      params.set('folderId', options.folderId === null ? 'null' : options.folderId);
+    if (filters?.folderId !== undefined) {
+      params.set('folderId', filters.folderId === null ? 'null' : filters.folderId);
     }
-    if (options?.archived) {
+    if (filters?.archived) {
       params.set('archived', 'true');
     }
-    if (options?.pinned) {
+    if (filters?.pinned) {
       params.set('pinned', 'true');
     }
     const queryString = params.toString();
-    return api.get<{ notes: Note[] }>(`/api/note/user-notes${queryString ? `?${queryString}` : ''}`);
+    const response = await api.get<{ notes: Note[] }>(`/api/note/user-notes${queryString ? `?${queryString}` : ''}`);
+    return {
+      ...response,
+      notes: (response.notes || []).map(n => ({ ...n, _id: n._id || (n as Note & { id?: string; uuid?: string }).id || (n as Note & { id?: string; uuid?: string }).uuid || '' }))
+    };
   },
 
-  getById: (id: string) =>
-    api.get<{ note: Note }>(`/api/note/detail-note/${id}`),
+  getById: async (id: string) => {
+    const response = await api.get<{ note: Note }>(`/api/note/detail-note/${id}`);
+    return {
+      ...response,
+      note: { ...response.note, _id: response.note._id || (response.note as Note & { id?: string; uuid?: string }).id || (response.note as Note & { id?: string; uuid?: string }).uuid || '' }
+    };
+  },
 
   create: (data: CreateNoteRequest) =>
     api.post<{ message: string; note: Note }>('/api/note/create-note', data),
@@ -390,8 +464,13 @@ export interface CreateFolderRequest {
 
 // API de carpetas
 export const foldersApi = {
-  getAll: () =>
-    api.get<{ folders: Folder[] }>('/api/folder/user-folders'),
+  getAll: async () => {
+    const response = await api.get<{ folders: Folder[] }>('/api/folder/user-folders');
+    return {
+      ...response,
+      folders: (response.folders || []).map(f => ({ ...f, _id: f._id || (f as Folder & { id?: string; uuid?: string }).id || (f as Folder & { id?: string; uuid?: string }).uuid || '' }))
+    };
+  },
 
   getById: (id: string) =>
     api.get<{ folder: Folder }>(`/api/folder/detail-folder/${id}`),
@@ -409,19 +488,25 @@ export const foldersApi = {
 // Tipos de Proyectos
 export interface Project {
   _id: string
+  id?: string
   name: string
   description?: string
   organizationId: string
   createdBy: string
   status: 'active' | 'archived' | 'completed'
+  color?: string // Added for UI customization
   createdAt: string
   updatedAt: string
   sections?: {
     _id: string
+    id?: string
     name: string
+    color?: string
     order: number
     limit?: number
   }[]
+  taskCount?: number
+  completedTaskCount?: number
 }
 
 export interface CreateProjectRequest {
@@ -480,11 +565,29 @@ export const adminApi = {
     api.delete<{ message: string }>(`/api/admin/users/${id}`),
 }
 export const projectsApi = {
-  getAll: () =>
-    api.get<{ projects: Project[] }>('/api/project/org-projects'),
+  getAll: async () => {
+    const response = await api.get<{ projects: Project[] }>('/api/project/org-projects');
+    return {
+      ...response,
+      projects: (response.projects || []).map(p => ({
+        ...p,
+        _id: p._id || (p as Project & { id?: string }).id || '',
+        sections: (p.sections || []).map(s => ({ ...s, _id: s._id || (s as { _id?: string; id?: string }).id || '' }))
+      }))
+    };
+  },
 
-  getById: (id: string) =>
-    api.get<{ project: Project }>(`/api/project/detail-project/${id}`),
+  getById: async (id: string) => {
+    const response = await api.get<{ project: Project }>(`/api/project/detail-project/${id}`);
+    return {
+      ...response,
+      project: {
+        ...response.project,
+        _id: response.project._id || (response.project as Project & { id?: string }).id || '',
+        sections: (response.project.sections || []).map(s => ({ ...s, _id: s._id || (s as { _id?: string; id?: string }).id || '' }))
+      }
+    };
+  },
 
   create: (data: CreateProjectRequest) =>
     api.post<{ message: string; project: Project }>('/api/project/create-project', data),
@@ -496,10 +599,10 @@ export const projectsApi = {
     api.delete<{ message: string }>(`/api/project/delete-project/${id}`),
 
   // Sections
-  addSection: (projectId: string, data: { name: string; limit?: number }) =>
+  addSection: (projectId: string, data: { name: string; color?: string; limit?: number }) =>
     api.post<{ project: Project }>(`/api/project/${projectId}/sections`, data),
 
-  updateSection: (projectId: string, sectionId: string, data: { name?: string; limit?: number }) =>
+  updateSection: (projectId: string, sectionId: string, data: { name?: string; color?: string; limit?: number }) =>
     api.patch<{ project: Project }>(`/api/project/${projectId}/sections/${sectionId}`, data),
 
   deleteSection: (projectId: string, sectionId: string) =>
@@ -520,6 +623,7 @@ export interface Attachment {
 
 export interface Task {
   _id: string
+  id?: string // Support for API normalization to 'id'
   title: string
   description?: string
   projectId?: string | { _id: string; name: string }
@@ -561,13 +665,24 @@ export interface CreateTaskRequest {
 
 // API de Tareas
 export const tasksApi = {
-  getAll: (projectId?: string, assignedTo?: string, search?: string) => {
+  getAll: async (filters?: { projectId?: string; assignedTo?: string; search?: string }) => {
     const params = new URLSearchParams()
-    if (projectId) params.append('projectId', projectId)
-    if (assignedTo) params.append('assignedTo', assignedTo)
-    if (search) params.append('search', search)
+    if (filters?.projectId) params.append('projectId', filters.projectId)
+    if (filters?.assignedTo) params.append('assignedTo', filters.assignedTo)
+    if (filters?.search) params.append('search', filters.search)
     const queryString = params.toString()
-    return api.get<{ tasks: Task[] }>(`/api/task/org-tasks${queryString ? `?${queryString}` : ''}`);
+    const response = await api.get<{ tasks: Task[] }>(`/api/task/org-tasks${queryString ? `?${queryString}` : ''}`);
+    return {
+      ...response,
+      tasks: (response.tasks || []).map(t => ({
+        ...t,
+        _id: t._id || (t as Task & { id?: string; uuid?: string }).id || (t as Task & { id?: string; uuid?: string }).uuid || '',
+        assignedTo: t.assignedTo ? {
+          ...t.assignedTo,
+          _id: t.assignedTo._id || (t.assignedTo as { _id?: string; id?: string; uuid?: string }).id || (t.assignedTo as { _id?: string; id?: string; uuid?: string }).uuid || ''
+        } : null
+      }))
+    };
   },
 
   create: (data: CreateTaskRequest) =>
@@ -637,6 +752,7 @@ export interface WhiteboardContent {
 
 export interface Whiteboard {
   _id: string
+  id?: string
   title: string
   thumbnail?: string
   content: WhiteboardContent | null
@@ -644,6 +760,7 @@ export interface Whiteboard {
   updatedAt: string
   createdBy: {
     _id: string
+    id?: string
     name: string
     avatar?: string
   }
@@ -651,8 +768,17 @@ export interface Whiteboard {
 
 // API de Pizarras (Whiteboards)
 export const whiteboardApi = {
-  getAll: () =>
-    api.get<{ whiteboards: Whiteboard[] }>('/api/whiteboard'),
+  getAll: async () => {
+    const response = await api.get<{ whiteboards: Whiteboard[] }>('/api/whiteboard');
+    return {
+      ...response,
+      whiteboards: (response.whiteboards || []).map(w => ({
+        ...w,
+        _id: w._id || (w as Whiteboard & { id?: string }).id || '',
+        createdBy: { ...w.createdBy, _id: w.createdBy._id || (w.createdBy as { _id?: string; id?: string }).id || '' }
+      }))
+    };
+  },
 
   create: (title: string) =>
     api.post<{ message: string; whiteboard: Whiteboard }>('/api/whiteboard', { title }),

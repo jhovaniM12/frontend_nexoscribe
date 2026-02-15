@@ -15,7 +15,7 @@ export function Layout({ children }: LayoutProps) {
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
 
   return (
-    <div className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-full bg-background overflow-x-hidden">
       {/* Overlay para móvil */}
       {sidebarMobileOpen && (
         <div
@@ -42,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <Header onMenuClick={() => setSidebarMobileOpen(true)} />
 
-        <main className="p-4 sm:p-6 lg:px-8 lg:py-6">
+        <main className="p-3 sm:p-4 lg:p-6 h-[calc(100vh-3.5rem)] min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin">
           {children}
         </main>
       </div>

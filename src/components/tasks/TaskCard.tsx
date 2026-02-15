@@ -2,25 +2,13 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Calendar,
   User as UserIcon,
-  Edit,
   Paperclip,
   Clock,
-  CheckCircle2,
-  FolderKanban,
   MessageSquare
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu"
 import { type Task } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -107,13 +95,6 @@ export function TaskCard({
   // Calcular si está atrasada
   const isOverdue = task.dueDate && isPast(new Date(task.dueDate)) && !isDone
 
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (onStatusToggle) {
-      onStatusToggle(task)
-    }
-  }
-
   const getDateInfo = () => {
     if (!task.dueDate) return null
     const due = new Date(task.dueDate)
@@ -166,12 +147,12 @@ export function TaskCard({
           </p>
         </div>
 
-        {/* Avatars Section */}
-        <div className="flex items-center pt-1">
+        {/* Row 1: Avatares | Prioridad */}
+        <div className="flex items-center justify-between pt-1">
           <div className="flex items-center -space-x-2">
             {task.assignedTo ? (
               <div
-                className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden z-20 shadow-sm"
+                className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden shadow-sm"
                 title={task.assignedTo.name}
               >
                 {task.assignedTo.avatar ? (
@@ -183,20 +164,12 @@ export function TaskCard({
                 )}
               </div>
             ) : (
-              <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 z-20">
+              <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
                 <UserIcon className="h-3.5 w-3.5 text-muted-foreground/40" />
               </div>
             )}
-            {/* Added a decorative second avatar to match reference visual stack if multiple would exist */}
-            {task.assignedTo && <div className="h-8 w-8 rounded-full bg-violet-400 border-2 border-background z-10 hidden sm:block shadow-sm" />}
           </div>
-        </div>
 
-        {/* Subtle Divider */}
-        <div className="h-px bg-border/40 -mx-5" />
-
-        {/* Footer: Priority & Meta Icons */}
-        <div className="flex items-center justify-between pt-1">
           <Badge
             variant="outline"
             className={cn(
@@ -206,28 +179,43 @@ export function TaskCard({
           >
             {priority.label}
           </Badge>
+        </div>
 
-          <div className="flex items-center gap-4 text-muted-foreground/60">
-            {dateInfo && (
-              <div className={cn("flex items-center gap-1.5 text-xs font-bold", dateInfo.className)}>
-                <Calendar className="h-4 w-4" strokeWidth={2.5} />
-                <span>{dateInfo.text}</span>
-              </div>
-            )}
+        {/* Divider */}
+        <div className="h-px bg-border/40 -mx-5" />
 
-            {(task.attachments?.length ?? 0) > 0 && (
-              <div className="flex items-center gap-1.5 font-bold text-sm">
-                <Paperclip className="h-4 w-4" strokeWidth={2.5} />
-                <span>{task.attachments?.length}</span>
-              </div>
-            )}
+        {/* Row 2: Fecha | Tiempo estimado | Adjuntos | Comentarios */}
+        <div className="flex items-center gap-4 pt-1 flex-wrap">
+          <div className={cn(
+            "flex items-center gap-1.5 text-xs font-medium",
+            dateInfo ? dateInfo.className : "text-muted-foreground/60"
+          )}>
+            <Calendar className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+            <span>{dateInfo?.text ?? "Sin fecha"}</span>
+          </div>
 
-            {(task.commentsCount ?? 0) > 0 && (
-              <div className="flex items-center gap-1.5 font-bold text-sm">
-                <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
-                <span>{task.commentsCount}</span>
-              </div>
-            )}
+          <div className={cn(
+            "flex items-center gap-1.5 text-xs font-medium",
+            task.estimatedTime ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground/60"
+          )}>
+            <Clock className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+            <span>{task.estimatedTime ? formatTime(task.estimatedTime) : "—"}</span>
+          </div>
+
+          <div className={cn(
+            "flex items-center gap-1.5 text-xs font-medium",
+            (task.attachments?.length ?? 0) > 0 ? "text-foreground/80" : "text-muted-foreground/60"
+          )}>
+            <Paperclip className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+            <span>{task.attachments?.length ?? 0}</span>
+          </div>
+
+          <div className={cn(
+            "flex items-center gap-1.5 text-xs font-medium",
+            (task.commentsCount ?? 0) > 0 ? "text-foreground/80" : "text-muted-foreground/60"
+          )}>
+            <MessageSquare className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+            <span>{task.commentsCount ?? 0}</span>
           </div>
         </div>
       </CardContent>

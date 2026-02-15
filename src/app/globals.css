@@ -9,123 +9,117 @@
 
 @layer base {
   :root {
-    /* === Brand Colors === */
-    --nexo-navy: 210 89% 23%;     /* #063B70 - Primary brand */
-    --nexo-ocean: 210 70% 45%;    /* Lighter variant */
-    --nexo-sky: 210 85% 55%;      /* Interactive hover */
-    
-    /* === Neutral Palette === */
-    --background: 210 20% 99%;    /* Almost white with cool tint */
-    --foreground: 215 25% 15%;    /* Rich dark for text */
+    /* === NexoScribe Brand Theme (Blue & White) === */
 
+    /* Base */
+    --background: 0 0% 100%;
+    /* White */
+    --foreground: 210 20% 4%;
+    /* Deep Blue-Grey */
+
+    /* Cards & Surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
-
+    --card-foreground: 210 20% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 210 20% 4%;
 
-    /* === Primary (NexoScribe Blue) === */
-    --primary: 210 89% 23%;
+    /* Brand Primary (NexoScribe Blue #063b70) */
+    --primary: 210 90% 23%;
+    /* #063b70 */
     --primary-foreground: 0 0% 100%;
 
-    /* === Secondary (Soft neutral) === */
-    --secondary: 210 15% 96%;
-    --secondary-foreground: 215 20% 35%;
+    /* Secondary (Subtle backgrounds) */
+    --secondary: 210 30% 97%;
+    /* Very light blue-grey */
+    --secondary-foreground: 210 90% 23%;
 
-    /* === Muted (Subtle backgrounds) === */
-    --muted: 210 12% 94%;
-    --muted-foreground: 215 12% 50%;
+    /* Muted (Text & Backgrounds) */
+    --muted: 210 30% 97%;
+    --muted-foreground: 210 15% 45%;
 
-    /* === Accent === */
-    --accent: 210 40% 96%;
-    --accent-foreground: 210 89% 23%;
+    /* Accent (Hover states) */
+    --accent: 210 30% 95%;
+    --accent-foreground: 210 90% 23%;
 
-    /* === Semantic === */
-    --destructive: 0 72% 51%;
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-    
-    --warning: 38 92% 50%;
-    --warning-foreground: 215 25% 15%;
 
-    /* === Borders (subtle, low-contrast) === */
-    --border: 210 15% 90%;
-    --border-subtle: 210 12% 93%;
-    --input: 210 15% 90%;
-    --ring: 210 89% 23%;
+    /* Borders & Inputs */
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 210 90% 23%;
 
-    /* === Radius (sharp-professional) === */
+    /* Radius */
     --radius: 0.5rem;
 
-    /* === Sidebar === */
-    --sidebar-background: 210 20% 99%;
-    --sidebar-foreground: 215 25% 15%;
-    --sidebar-primary: 210 89% 23%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 30% 96%;
-    --sidebar-accent-foreground: 210 89% 23%;
-    --sidebar-border: 210 15% 92%;
-    --sidebar-ring: 210 89% 23%;
+    /* Sidebar - Premium Blue Theme */
+    --sidebar-background: 210 90% 23%;
+    /* NexoScribe Blue */
+    --sidebar-foreground: 210 20% 96%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 210 90% 23%;
+    --sidebar-accent: 210 90% 28%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 80% 20%;
+    --sidebar-ring: 210 90% 90%;
 
-    /* === Surface Elevation === */
-    --surface-0: 210 20% 99%;     /* Base canvas */
-    --surface-1: 0 0% 100%;       /* Cards */
-    --surface-2: 210 15% 98%;     /* Elevated */
-    --surface-3: 210 12% 96%;     /* Highest */
+    /* Surface Elevation */
+    --surface-0: 0 0% 100%;
+    --surface-1: 210 30% 97%;
+    --surface-2: 210 20% 90%;
   }
 
   .dark {
-    /* === Dark Mode Palette === */
-    --background: 215 28% 8%;
-    --foreground: 210 10% 95%;
+    /* Base */
+    --background: 222 47% 4%;
+    /* Very deep Navy-Black */
+    --foreground: 210 40% 98%;
 
-    --card: 215 25% 10%;
-    --card-foreground: 210 10% 95%;
+    /* Cards */
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 4%;
+    --popover-foreground: 210 40% 98%;
 
-    --popover: 215 25% 10%;
-    --popover-foreground: 210 10% 95%;
-
-    --primary: 210 70% 50%;
+    /* Primary (Brand blue, slightly lighter for dark mode) */
+    --primary: 210 90% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 20% 18%;
-    --secondary-foreground: 210 10% 85%;
+    /* Secondary */
+    --secondary: 217.2 32.6% 12%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 18% 14%;
-    --muted-foreground: 210 10% 55%;
+    /* Muted */
+    --muted: 217.2 32.6% 12%;
+    --muted-foreground: 215 20.2% 70%;
 
-    --accent: 215 25% 16%;
-    --accent-foreground: 210 70% 65%;
+    /* Accent */
+    --accent: 217.2 32.6% 15%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 100%;
+    /* destructive */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
 
-    --success: 142 60% 50%;
-    --success-foreground: 0 0% 100%;
+    /* Borders */
+    --border: 217.2 32.6% 17%;
+    --input: 217.2 32.6% 17%;
+    --ring: 210 90% 55%;
 
-    --warning: 38 85% 55%;
-    --warning-foreground: 0 0% 100%;
-
-    --border: 215 20% 18%;
-    --border-subtle: 215 18% 15%;
-    --input: 215 20% 18%;
-    --ring: 210 70% 50%;
-
-    --sidebar-background: 215 28% 9%;
-    --sidebar-foreground: 210 10% 90%;
-    --sidebar-primary: 210 70% 50%;
+    /* Sidebar */
+    --sidebar-background: 222 47% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 90% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 22% 14%;
-    --sidebar-accent-foreground: 210 70% 65%;
-    --sidebar-border: 215 20% 16%;
-    --sidebar-ring: 210 70% 50%;
+    --sidebar-accent: 217.2 32.6% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17%;
+    --sidebar-ring: 224.3 76.3% 48%;
 
-    --surface-0: 215 28% 8%;
-    --surface-1: 215 25% 10%;
-    --surface-2: 215 22% 12%;
-    --surface-3: 215 20% 14%;
+    --surface-0: 222 47% 4%;
+    --surface-1: 217.2 32.6% 12%;
+    --surface-2: 217.2 32.6% 15%;
   }
 }
 
@@ -135,7 +129,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
     font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -160,22 +154,27 @@
   }
 
   /* Focus rings - consistent, subtle */
-  :focus-visible {
+  /* Focus rings - consistent, subtle */
+  /* :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
-  }
+  } */
 }
 
 @layer utilities {
+
   /* === Surface Utilities === */
   .surface-0 {
     background-color: hsl(var(--surface-0));
   }
+
   .surface-1 {
     background-color: hsl(var(--surface-1));
   }
+
   .surface-2 {
     background-color: hsl(var(--surface-2));
   }
+
   .surface-3 {
     background-color: hsl(var(--surface-3));
   }
@@ -233,6 +232,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
@@ -267,8 +267,14 @@
   /* === Kanban specific utilities === */
   .kanban-column {
     @apply flex flex-col bg-surface-1 rounded-xl border border-border/50;
-    min-width: 280px;
+    min-width: min(280px, 90vw);
     max-width: 360px;
+  }
+
+  /* Touch-friendly horizontal scroll for Kanban on mobile */
+  .kanban-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
   }
 
   .kanban-dropzone {
@@ -304,6 +310,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -319,18 +326,17 @@
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 0%,
-    hsl(var(--muted-foreground) / 0.08) 50%,
-    hsl(var(--muted)) 100%
-  );
+  background: linear-gradient(90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.08) 50%,
+      hsl(var(--muted)) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

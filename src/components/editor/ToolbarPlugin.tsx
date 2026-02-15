@@ -55,12 +55,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 function Divider() {
-  return <div className="divider" />;
+  return <Separator orientation="vertical" className="mx-1 h-6" />;
 }
 
 const HIGHLIGHT_COLORS = [
@@ -210,141 +212,155 @@ export default function ToolbarPlugin() {
 
   return (
     <>
-      <div className="toolbar" ref={toolbarRef}>
+      <div className="flex flex-wrap items-center bg-background border p-1 rounded-lg shadow-sm gap-0.5" ref={toolbarRef}>
         {/* Undo/Redo */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={!canUndo}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(UNDO_COMMAND, undefined);
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Undo"
           title="Deshacer"
         >
           <Undo2 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           disabled={!canRedo}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(REDO_COMMAND, undefined);
           }}
-          className="toolbar-item"
+          className="h-8 w-8 p-0"
           aria-label="Redo"
           title="Rehacer"
         >
           <Redo2 className="h-4 w-4" />
-        </button>
+        </Button>
         <Divider />
 
         {/* Headings */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_HEADING_COMMAND, 'h1');
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Heading 1"
           title="Título 1"
         >
           <Heading1 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_HEADING_COMMAND, 'h2');
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Heading 2"
           title="Título 2"
         >
           <Heading2 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_HEADING_COMMAND, 'h3');
           }}
-          className="toolbar-item"
+          className="h-8 w-8 p-0"
           aria-label="Heading 3"
           title="Título 3"
         >
           <Heading3 className="h-4 w-4" />
-        </button>
+        </Button>
         <Divider />
 
         {/* Text formatting */}
-        <button
-          type="button"
+        {/* Text formatting */}
+        <Button
+          variant={isBold ? "secondary" : "ghost"}
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
           }}
-          className={'toolbar-item spaced ' + (isBold ? 'active' : '')}
+          className="h-8 w-8 p-0"
           aria-label="Format Bold"
           title="Negrita"
         >
           <Bold className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={isItalic ? "secondary" : "ghost"}
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
           }}
-          className={'toolbar-item spaced ' + (isItalic ? 'active' : '')}
+          className="h-8 w-8 p-0"
           aria-label="Format Italics"
           title="Cursiva"
         >
           <Italic className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={isUnderline ? "secondary" : "ghost"}
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
           }}
-          className={'toolbar-item spaced ' + (isUnderline ? 'active' : '')}
+          className="h-8 w-8 p-0"
           aria-label="Format Underline"
           title="Subrayado"
         >
           <Underline className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={isStrikethrough ? "secondary" : "ghost"}
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
           }}
-          className={'toolbar-item spaced ' + (isStrikethrough ? 'active' : '')}
+          className="h-8 w-8 p-0"
           aria-label="Format Strikethrough"
           title="Tachado"
         >
           <Strikethrough className="h-4 w-4" />
-        </button>
+        </Button>
         <Divider />
 
         {/* Highlight */}
         <Popover open={highlightOpen} onOpenChange={setHighlightOpen}>
           <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={`toolbar-item spaced ${currentHighlight !== 'transparent' ? 'active' : ''}`}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-8 w-8 p-0",
+                currentHighlight !== 'transparent' && "bg-accent"
+              )}
               aria-label="Highlight"
               title="Resaltar texto"
               style={currentHighlight !== 'transparent' ? {
@@ -352,7 +368,7 @@ export default function ToolbarPlugin() {
               } : undefined}
             >
               <Highlighter className="h-4 w-4" />
-            </button>
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-2">
             <div className="grid grid-cols-3 gap-2">
@@ -365,15 +381,13 @@ export default function ToolbarPlugin() {
                     e.stopPropagation();
                     applyHighlight(color.value);
                   }}
-                  className={`
-                    h-8 w-full rounded border-2 transition-all
-                    ${color.className}
-                    ${currentHighlight === color.value ||
-                      (color.value === 'transparent' && currentHighlight === 'transparent')
-                      ? 'ring-2 ring-offset-2 ring-primary scale-105'
-                      : 'hover:scale-105 border-transparent'
-                    }
-                  `}
+                  className={cn(
+                    "h-8 w-full rounded border-2 transition-all",
+                    color.className,
+                    (currentHighlight === color.value || (color.value === 'transparent' && currentHighlight === 'transparent'))
+                      ? "ring-2 ring-offset-2 ring-primary scale-105"
+                      : "hover:scale-105 border-transparent"
+                  )}
                   title={color.name}
                   aria-label={color.name}
                 >
@@ -387,126 +401,135 @@ export default function ToolbarPlugin() {
         </Popover>
 
         {/* Link */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             setLinkDialogOpen(true);
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Insert Link"
           title="Insertar enlace"
         >
           <LinkIcon className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             removeLink();
           }}
-          className="toolbar-item"
+          className="h-8 w-8 p-0"
           aria-label="Remove Link"
           title="Quitar enlace"
         >
           <Unlink className="h-4 w-4" />
-        </button>
+        </Button>
         <Divider />
 
         {/* Lists */}
-        <button
-          type="button"
+        {/* Lists */}
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Bullet List"
           title="Lista con viñetas"
         >
           <List className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Numbered List"
           title="Lista numerada"
         >
           <ListOrdered className="h-4 w-4" />
-        </button>
+        </Button>
 
         {/* Quote */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_QUOTE_COMMAND, undefined);
           }}
-          className="toolbar-item"
+          className="h-8 w-8 p-0"
           aria-label="Quote"
           title="Cita"
         >
           <Quote className="h-4 w-4" />
-        </button>
+        </Button>
         <Divider />
 
         {/* Code Block */}
         <Popover open={codeLanguageOpen} onOpenChange={setCodeLanguageOpen}>
           <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="toolbar-item spaced"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
               aria-label="Code Block"
               title="Bloque de código"
             >
               <Code className="h-4 w-4" />
-            </button>
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-48 p-2">
             <div className="space-y-1 max-h-64 overflow-y-auto">
               {CODE_LANGUAGES.map((lang) => (
-                <button
+                <Button
                   key={lang.value}
-                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     editor.dispatchCommand(INSERT_CODE_BLOCK_COMMAND, lang.value);
                     setCodeLanguageOpen(false);
                   }}
-                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
+                  className="w-full justify-start text-sm font-normal"
                 >
                   {lang.label}
-                </button>
+                </Button>
               ))}
             </div>
           </PopoverContent>
         </Popover>
 
         {/* Image */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             fileInputRef.current?.click();
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Insert Image"
           title="Insertar imagen"
         >
           <ImageIcon className="h-4 w-4" />
-        </button>
-        <input
+        </Button>
+        <Input
           type="file"
           className="hidden"
           style={{ display: 'none' }}
@@ -518,58 +541,62 @@ export default function ToolbarPlugin() {
         <Divider />
 
         {/* Alignment */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'left');
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Left Align"
           title="Alinear izquierda"
         >
           <AlignLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'center');
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Center Align"
           title="Alinear centro"
         >
           <AlignCenter className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'right');
           }}
-          className="toolbar-item spaced"
+          className="h-8 w-8 p-0"
           aria-label="Right Align"
           title="Alinear derecha"
         >
           <AlignRight className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'justify');
           }}
-          className="toolbar-item"
+          className="h-8 w-8 p-0"
           aria-label="Justify Align"
           title="Justificar"
         >
           <AlignJustify className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Link Dialog */}

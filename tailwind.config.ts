@@ -116,6 +116,10 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.7" },
         },
+        "day-icon-glow": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.85", transform: "scale(1.08)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -125,6 +129,7 @@ export default {
         "slide-in": "slide-in 0.2s ease-out",
         "scale-in": "scale-in 0.15s ease-out",
         "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
+        "day-icon-glow": "day-icon-glow 2.5s ease-in-out infinite",
       },
       spacing: {
         '18': '4.5rem',

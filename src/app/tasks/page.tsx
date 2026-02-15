@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import { tasksApi, projectsApi, type Task, type Project, type Attachment, type CreateTaskRequest } from "@/lib/api"
 import { useOrganization } from "@/context/organization-context"
 import { useAuth } from "@/context/auth-context"
-import { KanbanBoard } from "@/components/tasks/KanbanBoard"
+import { KanbanBoard } from "@/components/kanban/KanbanBoard"
 import { ListView } from "@/components/tasks/ListView"
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet"
 import { useSearchParams } from "next/navigation"
@@ -78,15 +78,19 @@ function TasksPageContent() {
       const searchParam = searchQuery.trim() || undefined
 
       const [tasksRes, projectsRes] = await Promise.all([
-        tasksApi.getAll(
-          filterProject === 'all' ? undefined : filterProject,
-          assignedToParam,
-          searchParam
-        ),
+        tasksApi.getAll({
+          projectId: filterProject === 'all' ? undefined : filterProject,
+          assignedTo: assignedToParam,
+          search: searchParam
+        }),
         projectsApi.getAll()
       ])
 
-      setTasks(tasksRes.tasks || [])
+      const normalizedTasks = (tasksRes.tasks || []).map(t => ({
+        ...t,
+        _id: t._id || (t as Task & { id?: string }).id || ''
+      }))
+      setTasks(normalizedTasks)
       setProjects(projectsRes.projects || [])
     } catch (error) {
       console.error("Error loading tasks:", error)
@@ -141,7 +145,7 @@ function TasksPageContent() {
     // Optimistic update
     const oldTasks = [...tasks]
     const updatedTasks = tasks.map(t =>
-      t._id === taskId ? {
+      (t._id === taskId || t.id === taskId) ? {
         ...t,
         status: filterProject === 'all' ? newStatus as 'todo' | 'in_progress' | 'done' : t.status,
         sectionId: filterProject !== 'all' ? newStatus : t.sectionId
@@ -170,8 +174,8 @@ function TasksPageContent() {
     if (!confirm("¿Eliminar esta tarea?")) return
 
     try {
-      await tasksApi.delete(task._id)
-      setTasks(tasks.filter(t => t._id !== task._id))
+      await tasksApi.delete(task._id || task.id || '')
+      setTasks(tasks.filter(t => (t._id !== (task._id || task.id) && t.id !== (task._id || task.id))))
       toast.success("Tarea eliminada")
       setDialogOpen(false)
     } catch {
@@ -229,16 +233,19 @@ function TasksPageContent() {
             ? res.task.projectId._id === filterProject
             : res.task.projectId === filterProject)
         ) {
-          setTasks([...tasks, res.task])
+          const normalizedTask = { ...res.task, _id: res.task._id || (res.task as Task & { id?: string }).id || '' }
+          setTasks([...tasks, normalizedTask])
         }
         toast.success("Tarea creada")
       } else {
         if (!selectedTask) return
-        const res = await tasksApi.update(selectedTask._id, normalizedData)
+        const res = await tasksApi.update(selectedTask._id || selectedTask.id || '', normalizedData)
 
         // Actualizar o quitar la tarea según el filtro actual
+        const currentTaskId = selectedTask._id || selectedTask.id;
+        const normalizedTask = { ...res.task, _id: res.task._id || (res.task as Task & { id?: string }).id || '' };
         if (filterProject === 'all') {
-          setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
+          setTasks(tasks.map(t => (t._id === currentTaskId || t.id === currentTaskId) ? normalizedTask : t))
         } else {
           const newProjectId =
             res.task.projectId && typeof res.task.projectId === 'object'
@@ -247,10 +254,10 @@ function TasksPageContent() {
 
           if (newProjectId && newProjectId !== filterProject) {
             // Si la tarea ya no pertenece al proyecto filtrado, la removemos de la lista
-            setTasks(tasks.filter(t => t._id !== selectedTask._id))
+            setTasks(tasks.filter(t => (t._id !== currentTaskId && t.id !== currentTaskId)))
           } else {
             // Si sigue perteneciendo al proyecto filtrado, solo actualizamos sus datos
-            setTasks(tasks.map(t => t._id === selectedTask._id ? res.task : t))
+            setTasks(tasks.map(t => (t._id === currentTaskId || t.id === currentTaskId) ? normalizedTask : t))
           }
         }
         toast.success("Tarea actualizada")
@@ -343,96 +350,116 @@ function TasksPageContent() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="flex flex-col h-[calc(100vh-5rem)]">
-          <Tabs defaultValue="kanban" className="flex flex-col flex-1">
-            {/* Header & Toolbar (Reference Match: shadcnuikit.com) */}
-            <div className="flex flex-col gap-4 pb-4 px-2 pt-2">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col h-full overflow-hidden">
+          <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden">
+            {/* Nav & Toolbar - Linear Style */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 px-3 sm:px-6 py-3 border-b border-border/50 bg-background/50 backdrop-blur-sm shrink-0">
 
-                {/* Left Side: Title + Tabs */}
-                <div className="flex items-center gap-6">
-                  <h1 className="text-2xl font-bold tracking-tight">Kanban Board</h1>
-
-                  <TabsList className="h-9 bg-muted/50 p-1 gap-1 hidden md:inline-flex">
-                    <TabsTrigger value="kanban" className="h-7 rounded-sm px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                      Board
-                    </TabsTrigger>
-                    <TabsTrigger value="list" className="h-7 rounded-sm px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                      List
-                    </TabsTrigger>
-                    <TabsTrigger value="calendar" className="h-7 rounded-sm px-3 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                      Calendar
-                    </TabsTrigger>
-                  </TabsList>
+              <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="h-4 w-4 rounded-sm bg-primary/20 border border-primary/30 flex items-center justify-center">
+                    <LayoutGrid className="h-2.5 w-2.5 text-primary" />
+                  </div>
+                  <h1 className="text-sm font-semibold tracking-tight">Tareas</h1>
                 </div>
 
-                {/* Right Side: Actions & Controls */}
-                <div className="flex items-center gap-3 ml-auto">
+                <TabsList className="bg-transparent h-auto p-0 gap-6 border-none">
+                  <TabsTrigger
+                    value="kanban"
+                    className="h-8 rounded-none border-b-2 border-transparent px-1 pb-2 pt-0 text-xs font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground bg-transparent shadow-none"
+                  >
+                    Tablero
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="list"
+                    className="h-8 rounded-none border-b-2 border-transparent px-1 pb-2 pt-0 text-xs font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground bg-transparent shadow-none"
+                  >
+                    Lista
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="calendar"
+                    className="h-8 rounded-none border-b-2 border-transparent px-1 pb-2 pt-0 text-xs font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground bg-transparent shadow-none"
+                  >
+                    Calendario
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-                  {/* Avatar Stack */}
-                  <div className="flex items-center -space-x-2 mr-2">
-                    {members.slice(0, 4).map((member, i) => {
-                      const mUser = typeof member.userId === 'object' ? member.userId : { _id: member.userId, name: 'User', avatar: '' }
-                      return (
-                        <div key={i} className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden" title={mUser.name}>
-                          {mUser.avatar ? (
-                            <img src={mUser.avatar} alt={mUser.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-[10px] font-medium text-muted-foreground">
-                              {mUser.name.slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                    {members.length > 4 && (
-                      <div className="h-8 w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground z-10">
-                        +{members.length - 4}
-                      </div>
-                    )}
-                    <Button variant="outline" size="sm" className="h-8 w-8 rounded-full ml-2 border-dashed p-0 gap-1 text-muted-foreground hover:text-foreground">
-                      <Plus className="h-4 w-4" />
-                      <span className="sr-only">Add Assignee</span>
-                    </Button>
-                  </div>
+              <div className="flex items-center gap-2 sm:gap-4 flex-1 sm:flex-initial min-w-0">
+                {/* Search */}
+                <div className="relative group flex-1 sm:flex-initial min-w-0">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
+                  <Input
+                    placeholder="Buscar..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="pl-8 h-8 w-full min-w-0 sm:w-[160px] md:w-[180px] text-[11px] bg-muted/20 border-transparent focus:bg-background focus:border-border/60 transition-all rounded-md"
+                  />
+                </div>
 
-                  <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
+                <div className="h-4 w-px bg-border/40" />
 
-                  {/* Search */}
-                  <div className="relative w-[200px] hidden sm:block">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      placeholder="Search tasks..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      className="pl-8 h-9 text-xs bg-transparent"
-                    />
-                  </div>
-
-                  {/* Filters Button */}
-                  <Button variant="outline" size="sm" className="h-9 gap-2 text-xs font-medium hidden sm:flex">
-                    <Filter className="h-3.5 w-3.5" />
-                    Filters
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <Filter className="h-3 w-3" />
+                    Filtros
                   </Button>
 
-                  {/* Add Task Button (Primary) */}
-                  <Button onClick={() => handleNewTask()} size="sm" className="h-9 gap-2 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+                  <Button
+                    onClick={() => handleNewTask()}
+                    size="sm"
+                    className="h-8 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-[11px] font-medium gap-1.5"
+                  >
                     <Plus className="h-3.5 w-3.5" />
-                    Add Task
+                    Nueva Tarea
                   </Button>
                 </div>
               </div>
+            </div>
 
-              {/* Mobile Tabs & Search (Changes order on mobile) */}
-              <div className="flex md:hidden items-center justify-between gap-2">
-                <TabsList className="h-9 bg-muted/50 p-1 gap-1 flex-1">
-                  <TabsTrigger value="kanban" className="flex-1 h-7 text-xs">Board</TabsTrigger>
-                  <TabsTrigger value="list" className="flex-1 h-7 text-xs">List</TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex-1 h-7 text-xs">Cal</TabsTrigger>
-                </TabsList>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <Search className="h-4 w-4" />
-                </Button>
+            {/* Sub-header for Project Selection / Members (Optional based on scroll) */}
+            <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-6 py-2 border-b border-border/30 bg-muted/10 shrink-0 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <span>Proyecto:</span>
+                <Select value={filterProject} onValueChange={setFilterProject}>
+                  <SelectTrigger className="h-6 border-none bg-transparent hover:bg-muted font-medium text-foreground w-fit gap-1.5 p-0 px-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los proyectos</SelectItem>
+                    {projects.map(p => (
+                      <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="h-3 w-px bg-border/40" />
+
+              <div className="flex items-center -space-x-1.5">
+                {members.slice(0, 3).map((member, i) => {
+                  const mUser = typeof member.userId === 'object' ? member.userId : { _id: member.userId, name: 'User', avatar: '' }
+                  return (
+                    <div key={i} className="h-5 w-5 rounded-full border border-background bg-muted flex items-center justify-center overflow-hidden grayscale hover:grayscale-0 transition-all cursor-pointer shadow-sm">
+                      {mUser.avatar ? (
+                        <img src={mUser.avatar} alt={mUser.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-[8px] font-bold text-muted-foreground">
+                          {mUser.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+                {members.length > 3 && (
+                  <div className="h-5 w-5 rounded-full border border-background bg-muted flex items-center justify-center text-[8px] font-medium text-muted-foreground z-10 shadow-sm">
+                    +{members.length - 3}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -450,7 +477,6 @@ function TasksPageContent() {
                   setSelectedTask(null)
                   setInitialDate(undefined)
                   setDialogOpen(true)
-                  // TODO: Pre-set the status or section based on column
                 }}
                 onStatusToggle={handleStatusToggle}
                 onQuickAssign={handleQuickAssign}
@@ -479,38 +505,51 @@ function TasksPageContent() {
               />
             </TabsContent>
 
-            {/* Calendar Content */}
-            <TabsContent value="calendar" className="flex-1 mt-6 border-0 p-0 flex flex-col min-h-[600px]">
-              <div className="flex items-center justify-between px-1 mb-4">
-                <h2 className="text-xl font-bold capitalize">
-                  {format(currentDate, 'MMMM yyyy', { locale: es })}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleToday}>Hoy</Button>
-                  <div className="flex items-center border rounded-md bg-background">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePreviousMonth}>
-                      <ChevronLeft className="h-4 w-4" />
+            {/* Calendar Content - Linear Style */}
+            <TabsContent value="calendar" className="flex-1 mt-0 border-0 p-0 flex flex-col overflow-hidden bg-background">
+              {/* Calendar Nav */}
+              <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border/30">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-sm font-semibold capitalize">
+                    {format(currentDate, 'MMMM yyyy', { locale: es })}
+                  </h2>
+                  <div className="flex items-center border rounded-md overflow-hidden h-7">
+                    <Button variant="ghost" size="icon" className="h-full w-7 rounded-none hover:bg-muted" onClick={handlePreviousMonth}>
+                      <ChevronLeft className="h-3 w-3" />
                     </Button>
-                    <div className="w-px h-6 bg-border" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
-                      <ChevronRight className="h-4 w-4" />
+                    <div className="w-px h-4 bg-border/40" />
+                    <Button variant="ghost" size="icon" className="h-full w-7 rounded-none hover:bg-muted" onClick={handleNextMonth}>
+                      <ChevronRight className="h-3 w-3" />
                     </Button>
+                  </div>
+                  <Button variant="outline" size="sm" className="h-7 text-[10px] px-3 font-medium" onClick={handleToday}>Hoy</Button>
+                </div>
+
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <span>Hoy</span>
+                  </div>
+                  <div className="h-3 w-px bg-border/40 mx-1" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                    <span>Alta Prioridad</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex-1 bg-background border rounded-lg shadow-sm flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Days Header */}
-                <div className="grid grid-cols-7 border-b bg-muted/30">
+                <div className="grid grid-cols-7 border-b border-border/20 shrink-0">
                   {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
-                    <div key={day} className="p-2 text-xs font-medium text-center text-muted-foreground uppercase tracking-wider">
+                    <div key={day} className="py-2 text-[10px] font-semibold text-center text-muted-foreground/60 uppercase tracking-tighter">
                       {day}
                     </div>
                   ))}
                 </div>
 
                 {/* Days Grid */}
-                <div className="flex-1 grid grid-cols-7 grid-rows-5 lg:grid-rows-6 overflow-y-auto">
+                <div className="flex-1 grid grid-cols-7 grid-rows-5 lg:grid-rows-6 auto-rows-fr">
                   {calendarDays.map((day, dayIdx) => {
                     const dayTasks = getTasksForDay(day)
                     const isCurrentMonth = isSameMonth(day, monthStart)
@@ -521,41 +560,31 @@ function TasksPageContent() {
                       <div
                         key={day.toString()}
                         onClick={() => {
-                          if (!isPast) {
-                            handleNewTask(day)
-                          } else {
-                            toast.error("No puedes crear tareas en días pasados")
-                          }
+                          if (!isPast) handleNewTask(day)
                         }}
                         className={cn(
-                          "border-b border-r p-1.5 relative transition-colors flex flex-col gap-1 min-h-[80px]",
-                          !isCurrentMonth && "bg-muted/10 text-muted-foreground/50",
-                          isPast
-                            ? isCurrentMonth ? "bg-muted/5 cursor-not-allowed" : "cursor-not-allowed"
-                            : "hover:bg-accent/10 cursor-pointer",
+                          "border-b border-r border-border/20 p-1 relative transition-all group/day min-h-0",
+                          !isCurrentMonth && "bg-muted/5 opacity-40",
+                          isPast ? "cursor-default" : "cursor-pointer hover:bg-muted/10",
                           dayIdx % 7 === 6 && "border-r-0"
                         )}
                       >
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center justify-between p-1">
                           <span
                             className={cn(
-                              "text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full",
-                              isDayToday
-                                ? "bg-primary text-primary-foreground"
-                                : "text-foreground/70"
+                              "text-[10px] font-medium w-5 h-5 flex items-center justify-center rounded-full transition-colors",
+                              isDayToday ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground group-hover/day:text-foreground"
                             )}
                           >
                             {format(day, 'd')}
                           </span>
-                          {dayTasks.length > 0 && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
-                              {dayTasks.length}
-                            </Badge>
+                          {dayTasks.length > 0 && !isDayToday && (
+                            <div className="h-1 w-1 rounded-full bg-primary/40 shrink-0" />
                           )}
                         </div>
 
-                        <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                          {dayTasks.map((task) => (
+                        <div className="flex flex-col gap-0.5 px-0.5 overflow-hidden">
+                          {dayTasks.slice(0, 3).map((task) => (
                             <button
                               key={task._id}
                               onClick={(e) => {
@@ -563,22 +592,31 @@ function TasksPageContent() {
                                 handleEditTask(task)
                               }}
                               className={cn(
-                                "text-left text-[10px] p-1 rounded border truncate transition-all hover:shadow-sm group",
-                                task.status === 'done'
-                                  ? "bg-muted text-muted-foreground border-transparent line-through decoration-muted-foreground/50"
-                                  : task.priority === 'high'
-                                    ? "bg-red-50 text-red-700 border-red-100 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50"
-                                    : "bg-white text-foreground border-border hover:border-primary/50 dark:bg-secondary/50"
+                                "group/task relative flex items-center gap-1.5 px-1.5 py-0.5 rounded-[3px] text-[9px] transition-all truncate",
+                                task.status === 'done' ? "opacity-50 grayscale" : "hover:bg-muted"
                               )}
                             >
-                              <div className="flex items-center gap-1">
-                                {task.estimatedTime && (
-                                  <Clock className="w-2 h-2 flex-shrink-0 opacity-50" />
+                              <div
+                                className={cn(
+                                  "h-1 w-1 rounded-full shrink-0",
+                                  task.status === 'done' ? "bg-muted-foreground" :
+                                    task.priority === 'high' ? "bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.4)]" :
+                                      task.priority === 'medium' ? "bg-orange-400" : "bg-blue-400"
                                 )}
-                                <span className="truncate">{task.title}</span>
-                              </div>
+                              />
+                              <span className={cn(
+                                "truncate font-medium",
+                                task.status === 'done' && "line-through text-muted-foreground"
+                              )}>
+                                {task.title}
+                              </span>
                             </button>
                           ))}
+                          {dayTasks.length > 3 && (
+                            <div className="text-[8px] text-muted-foreground/60 font-medium px-1.5 pt-0.5">
+                              + {dayTasks.length - 3} más
+                            </div>
+                          )}
                         </div>
                       </div>
                     )

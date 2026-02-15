@@ -290,19 +290,9 @@ export function KanbanColumn({
                                     "h-full min-h-[150px] border-2 border-dashed rounded-xl flex items-center justify-center text-muted-foreground/40 text-sm font-medium transition-colors",
                                     isOver ? "border-primary/30 bg-primary/5" : "border-muted/40 hover:border-muted-foreground/20"
                                 )}>
-                                    Drop tasks here
+                                    Arrastra tareas aquí
                                 </div>
                             )}
-
-                            {/* "Add Task" Ghost Button at bottom of list */}
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start text-muted-foreground/60 text-sm h-9 hover:text-primary hover:bg-background/80 hover:shadow-sm transition-all"
-                                onClick={() => onAddTask(column.id)}
-                            >
-                                <Plus className="mr-2 h-4 w-4" />
-                                New Task
-                            </Button>
                         </div>
                     </div>
                 </>

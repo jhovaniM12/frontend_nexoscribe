@@ -27,6 +27,7 @@ import {
     CommandShortcut,
 } from "@/components/ui/command"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 export function CommandPalette() {
     const [open, setOpen] = React.useState(false)
@@ -51,15 +52,37 @@ export function CommandPalette() {
 
     return (
         <>
+            {/* Desktop: barra completa */}
             <button
+                type="button"
                 onClick={() => setOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground border rounded-md hover:bg-accent transition-colors w-full max-w-md"
+                className={cn(
+                    "hidden md:flex items-center gap-3 w-full max-w-md h-10 px-4 rounded-xl",
+                    "bg-muted/40 hover:bg-muted/60 border border-transparent hover:border-border/50",
+                    "text-muted-foreground hover:text-foreground/80 transition-colors duration-200",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                )}
+                aria-label="Buscar (Ctrl+K)"
+            >
+                <Search className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left text-sm">Buscar...</span>
+                <kbd className="pointer-events-none hidden sm:inline-flex h-6 select-none items-center gap-0.5 rounded-md border border-border/60 bg-background/80 px-2 font-mono text-[10px] font-medium text-muted-foreground">
+                    <span>⌘</span>K
+                </kbd>
+            </button>
+            {/* Móvil: icono compacto */}
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className={cn(
+                    "md:hidden flex h-9 w-9 items-center justify-center rounded-lg",
+                    "bg-muted/40 hover:bg-muted/60 border border-transparent hover:border-border/50",
+                    "text-muted-foreground hover:text-foreground/80 transition-colors duration-200",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                )}
+                aria-label="Buscar (Ctrl+K)"
             >
                 <Search className="h-4 w-4" />
-                <span className="hidden sm:inline">Buscar...</span>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-auto">
-                    <span className="text-xs">⌘</span>K
-                </kbd>
             </button>
 
             <CommandDialog open={open} onOpenChange={setOpen}>

@@ -17,7 +17,7 @@ interface OrganizationContextType {
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined)
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, activeOrganizationId, updateActiveOrganizationId } = useAuth()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -36,15 +36,14 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       const orgs = response.organizations
       setOrganizations(orgs)
 
-      // Lógica de selección automática
-      const storedOrgId = localStorage.getItem('currentOrgId')
+      // Lógica de selección basada en el estado del backend (vía AuthContext)
       let selectedOrg = null
 
-      if (storedOrgId) {
-        selectedOrg = orgs.find(o => o._id === storedOrgId)
+      if (activeOrganizationId) {
+        selectedOrg = orgs.find(o => o._id === activeOrganizationId)
       }
 
-      // Si no hay guardada o la guardada ya no existe, usar la primera (usualmente la personal)
+      // Fallback: usar la primera si no hay activa definida
       if (!selectedOrg && orgs.length > 0) {
         selectedOrg = orgs[0]
       }
@@ -53,44 +52,58 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         setCurrentOrganization(selectedOrg)
         localStorage.setItem('currentOrgId', selectedOrg._id)
       } else {
-        // Caso extremo: usuario sin organizaciones (no debería pasar si el registro funciona)
         setCurrentOrganization(null)
-        localStorage.removeItem('currentOrgId')
       }
 
     } catch (error) {
       console.error('Error loading organizations:', error)
       toast.error('Error al cargar tus espacios de trabajo')
-      // En caso de error, asegurarse de no quedarse en estado de carga
       setOrganizations([])
       setCurrentOrganization(null)
     } finally {
       setIsLoading(false)
     }
-  }, [user])
+  }, [user, activeOrganizationId])
 
   useEffect(() => {
     loadOrganizations()
   }, [loadOrganizations])
 
-  const setOrganization = (orgId: string) => {
+  const setOrganization = async (orgId: string) => {
     const org = organizations.find(o => o._id === orgId)
     if (org) {
-      setCurrentOrganization(org)
-      localStorage.setItem('currentOrgId', org._id)
-      toast.success(`Cambiado a ${org.name}`)
-      // Recargar la página para asegurar que todos los componentes (como Notas) refresquen sus datos con el nuevo header
-      // Una alternativa más suave sería usar un evento o contexto para invalidar queries, pero esto es robusto por ahora.
-      window.location.reload() 
+      try {
+        // Actualizar en backend
+        await organizationApi.setActive(org._id)
+
+        // Actualizar en frontend
+        updateActiveOrganizationId(org._id)
+        setCurrentOrganization(org)
+        localStorage.setItem('currentOrgId', org._id)
+
+        toast.success(`Cambiado a ${org.name}`)
+
+        // Recargar para asegurar consistencia total de datos
+        window.location.reload()
+      } catch (error) {
+        console.error('Error switching organization:', error)
+        toast.error('Error al cambiar de organización')
+      }
     }
   }
 
-  const setOrganizationWithoutReload = (orgId: string) => {
+  const setOrganizationWithoutReload = async (orgId: string) => {
     const org = organizations.find(o => o._id === orgId)
     if (org) {
-      setCurrentOrganization(org)
-      localStorage.setItem('currentOrgId', org._id)
-      toast.success(`Cambiado a ${org.name}`)
+      try {
+        await organizationApi.setActive(org._id)
+        updateActiveOrganizationId(org._id)
+        setCurrentOrganization(org)
+        toast.success(`Cambiado a ${org.name}`)
+      } catch (error) {
+        console.error('Error switching organization:', error)
+        toast.error('Error al cambiar de organización')
+      }
     }
   }
 

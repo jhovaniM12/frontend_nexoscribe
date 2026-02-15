@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,13 @@ import { authApi } from "@/lib/api"
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login } = useAuth() // Usamos login para auto-login después del registro
+  const { user, loading: authLoading, login } = useAuth()
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(searchParams.get('redirect') || '/dashboard')
+    }
+  }, [user, authLoading, router, searchParams])
   const [accountType, setAccountType] = useState<'individual' | 'business'>('individual')
   const [name, setName] = useState("")
   const [companyName, setCompanyName] = useState("")
@@ -87,6 +93,24 @@ function RegisterForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md shadow-elevated">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (user) {
+    return null
   }
 
   return (

@@ -10,7 +10,7 @@ export function stripHtml(html: string): string {
 /**
  * Filtra notas por búsqueda
  */
-export function filterNotesBySearch<T extends { title: string; content: string; tags: string[] }>(
+export function filterNotesBySearch<T extends { title: string; content: string; tags?: string[] }>(
   notes: T[], 
   searchQuery: string
 ): T[] {
@@ -20,7 +20,7 @@ export function filterNotesBySearch<T extends { title: string; content: string; 
   return notes.filter((note) => (
     note.title.toLowerCase().includes(query) ||
     stripHtml(note.content).toLowerCase().includes(query) ||
-    note.tags.some(tag => tag.toLowerCase().includes(query))
+    (note.tags ?? []).some(tag => tag.toLowerCase().includes(query))
   ))
 }
 

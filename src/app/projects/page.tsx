@@ -17,7 +17,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  
+
   // Dialog State
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
@@ -29,7 +29,7 @@ export default function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     if (!currentOrganization) return
-    
+
     try {
       setLoading(true)
       const response = await projectsApi.getAll()
@@ -112,7 +112,7 @@ export default function ProjectsPage() {
     }
   }
 
-  const filteredProjects = projects.filter(p => 
+  const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
   )
@@ -120,33 +120,35 @@ export default function ProjectsPage() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <FolderKanban className="h-8 w-8 text-primary" />
-                Proyectos
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Gestiona tus proyectos y sus estados
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          {/* Header - Linear Style */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-primary">
+                <FolderKanban className="h-5 w-5" />
+                <span className="text-xs font-bold uppercase tracking-widest">Workspace</span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Proyectos</h1>
+              <p className="text-sm text-muted-foreground">
+                Colabora y mantén el progreso de tus equipos en un solo lugar.
               </p>
             </div>
-            <Button onClick={handleCreate} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nuevo Proyecto
-            </Button>
-          </div>
 
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar proyectos..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              <div className="relative group flex-1 sm:flex-initial min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
+                <Input
+                  placeholder="Buscar proyectos..."
+                  className="pl-10 h-10 w-full sm:w-[200px] md:w-[240px] bg-muted/20 border-transparent focus:bg-background focus:border-border/60 transition-all"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button onClick={handleCreate} className="h-10 gap-2 bg-primary text-primary-foreground font-medium shadow-sm active:scale-95 transition-all">
+                <Plus className="h-4 w-4" />
+                Nuevo Proyecto
+              </Button>
+            </div>
           </div>
 
           {/* Projects Grid */}
@@ -167,9 +169,9 @@ export default function ProjectsPage() {
             </div>
           ) : (
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {filteredProjects.map((project) => (
+              {filteredProjects.map((project, index) => (
                 <ProjectCard
-                  key={project._id}
+                  key={project._id ?? project.id ?? `project-${index}`}
                   project={project}
                   onEdit={handleEdit}
                   onDelete={handleDelete}

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useState, Suspense, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
@@ -15,12 +15,19 @@ import Image from "next/image"
 import Link from "next/link"
 
 function LoginForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const { login } = useAuth()
+  const { user, loading: authLoading, login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(searchParams.get('redirect') || '/dashboard')
+    }
+  }, [user, authLoading, router, searchParams])
   const [showPassword, setShowPassword] = useState(false)
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -50,6 +57,24 @@ function LoginForm() {
   const handleGoogleLogin = () => {
     toast.info("Inicio de sesión con Google próximamente")
     // TODO: Implementar OAuth con Google
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md shadow-elevated">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (user) {
+    return null
   }
 
   return (

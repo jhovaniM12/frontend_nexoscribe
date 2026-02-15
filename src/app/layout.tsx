@@ -6,6 +6,9 @@ import { fontVariables, jakartaSans } from "@/lib/fonts"
 export const metadata: Metadata = {
   title: "NexoScribe",
   description: "Plataforma de productividad para equipos modernos",
+  icons: {
+    icon: "/favicon.ico",
+  },
 }
 
 export default function RootLayout({

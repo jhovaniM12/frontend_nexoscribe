@@ -1,6 +1,6 @@
 'use client'
 
-import { Moon, Sun, User, Menu, ShieldAlert, LogOut, Settings } from "lucide-react"
+import { Moon, Sun, User, Menu, ShieldAlert, LogOut, Settings, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -30,7 +30,8 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
+    const timer = setTimeout(() => setMounted(true), 0)
+    return () => clearTimeout(timer)
   }, [])
 
   const getInitials = (name: string) => {
@@ -43,41 +44,35 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   }
 
   return (
-    <header className="h-14 border-b border-border/60 bg-card sticky top-0 z-30">
-      <div className="h-full flex items-center justify-between px-4 sm:px-6 gap-6">
-        <div className="flex items-center gap-4">
-          {/* Mobile Menu Button */}
+    <header className="h-14 shrink-0 border-b border-border/50 bg-background/95 backdrop-blur-md sticky top-0 z-30 flex items-center shadow-sm shadow-black/[0.02] dark:shadow-black/20">
+      <div className="h-full flex items-center justify-between px-4 sm:px-6 gap-4 lg:gap-6 w-full">
+        <div className="flex items-center gap-3 min-w-0">
           {onMenuClick && (
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden h-9 w-9"
+              className="lg:hidden h-9 w-9 shrink-0"
               onClick={onMenuClick}
+              aria-label="Abrir menú"
             >
               <Menu className="h-5 w-5" />
             </Button>
           )}
 
-          {/* Breadcrumbs */}
           <Breadcrumbs />
         </div>
 
-        {/* Global Search / Command Palette */}
-        <div className="flex-1 max-w-md hidden md:block">
+        <div className="flex-1 max-w-xl flex justify-center px-2 sm:px-4">
           <CommandPalette />
         </div>
 
-        {/* Action buttons (mobile) */}
-        <div className="flex md:hidden flex-1" />
-
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          {/* Theme Toggle */}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="h-9 w-9 rounded-lg"
+            className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            aria-label={mounted && theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
           >
             {mounted && theme === "dark" ? (
               <Sun className="h-[18px] w-[18px]" />
@@ -86,27 +81,32 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
             )}
           </Button>
 
-          {/* User Menu */}
+          <div className="w-px h-6 bg-border/60 hidden sm:block" />
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-9 px-2 gap-2 rounded-lg hover:bg-accent"
+                className={cn(
+                  "h-9 gap-2 rounded-lg hover:bg-muted/60 pl-2 pr-2 sm:pr-3",
+                  "focus-visible:ring-2 focus-visible:ring-ring"
+                )}
               >
-                <Avatar className="h-7 w-7">
+                <Avatar className="h-7 w-7 shrink-0 ring-2 ring-background">
                   {user?.avatar && (
                     <AvatarImage src={user.avatar} alt={user.name} />
                   )}
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                     {user?.name ? getInitials(user.name) : <User className="h-3.5 w-3.5" />}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden sm:block text-sm font-medium max-w-[120px] truncate">
+                <span className="hidden sm:block text-sm font-medium text-foreground max-w-[100px] truncate text-left">
                   {user?.name?.split(' ')[0]}
                 </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block shrink-0" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-56 rounded-xl border-border/50 shadow-lg">
               {/* User Info */}
               {user && (
                 <>
