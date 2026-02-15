@@ -1,5 +1,6 @@
 'use client'
 
+import '@/components/editor/editor.css'
 import { Layout } from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -23,7 +24,7 @@ import {
 } from "lucide-react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { notesApi, foldersApi, type Note, type Folder as FolderType } from "@/lib/api"
 import { toast } from "sonner"
 import { AuthGuard } from "@/components/AuthGuard"
@@ -82,6 +83,44 @@ export default function NoteDetail() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Resaltar bloques de código en el visualizador (Prism)
+  useEffect(() => {
+    if (!content || !contentRef.current) return
+    const container = contentRef.current
+    const runPrism = async () => {
+      const Prism = await import('prismjs')
+      await Promise.all([
+        import('prismjs/components/prism-javascript'),
+        import('prismjs/components/prism-typescript'),
+        import('prismjs/components/prism-python'),
+        import('prismjs/components/prism-markup'),
+        import('prismjs/components/prism-css'),
+        import('prismjs/components/prism-sql'),
+        import('prismjs/components/prism-json'),
+        import('prismjs/components/prism-bash'),
+        import('prismjs/components/prism-clike'),
+      ])
+      const pres = container.querySelectorAll<HTMLElement>('pre[data-language], pre.editor-code')
+      pres.forEach((pre) => {
+        if (pre.querySelector('.editor-tokenKeyword, .editor-tokenString, .token')) return
+        let lang = (pre.getAttribute('data-language') || '').toLowerCase()
+        if (!lang || lang === 'plain' || lang === 'plaintext') lang = 'javascript'
+        const code = pre.querySelector('code') || pre
+        code.classList.add(`language-${lang}`)
+        try {
+          Prism.default.highlightElement(code)
+        } catch {
+          // lenguaje no cargado, ignorar
+        }
+      })
+    }
+    const id = requestAnimationFrame(() => {
+      runPrism()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [content])
 
   // Verificar query parameter para activar modo edición al cargar
   useEffect(() => {
@@ -399,6 +438,7 @@ export default function NoteDetail() {
                 <div className="space-y-4">
                   {/* Renderizar contenido HTML */}
                   <div
+                    ref={contentRef}
                     className="prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: content }}
                   />

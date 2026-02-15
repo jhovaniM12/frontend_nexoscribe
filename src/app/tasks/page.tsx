@@ -10,7 +10,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { organizationApi } from "@/lib/api"
 import { useState, useEffect, useCallback, Suspense } from "react"
 import { toast } from "sonner"
@@ -20,6 +19,7 @@ import { useAuth } from "@/context/auth-context"
 import { KanbanBoard } from "@/components/kanban/KanbanBoard"
 import { ListView } from "@/components/tasks/ListView"
 import { TaskDetailSheet } from "@/components/tasks/TaskDetailSheet"
+import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -40,7 +40,7 @@ import {
 } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Plus, Search, Filter, LayoutGrid, List as ListIcon, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, User, X, Loader2, CheckSquare } from "lucide-react"
+import { Plus, Search, Filter, LayoutGrid, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { AuthGuard } from "@/components/AuthGuard"
 
 function TasksPageContent() {
@@ -53,7 +53,7 @@ function TasksPageContent() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [filterProject, setFilterProject] = useState<string>(projectIdParam || 'all')
-  const [filterAssigned, setFilterAssigned] = useState<string>('all') // 'all', 'me', 'unassigned', o userId
+  const [filterAssigned] = useState<string>('all') // 'all', 'me', 'unassigned', o userId
   const [searchQuery, setSearchQuery] = useState("")
   const [searchInput, setSearchInput] = useState("") // Input separado para debounce
   const [members, setMembers] = useState<Array<{ userId: { _id: string; name: string; email: string; avatar?: string } | string; role: string }>>([])
@@ -446,7 +446,7 @@ function TasksPageContent() {
                   return (
                     <div key={i} className="h-5 w-5 rounded-full border border-background bg-muted flex items-center justify-center overflow-hidden grayscale hover:grayscale-0 transition-all cursor-pointer shadow-sm">
                       {mUser.avatar ? (
-                        <img src={mUser.avatar} alt={mUser.name} className="h-full w-full object-cover" />
+                        <Image src={mUser.avatar} alt={mUser.name} width={20} height={20} className="h-full w-full object-cover" />
                       ) : (
                         <span className="text-[8px] font-bold text-muted-foreground">
                           {mUser.name.slice(0, 2).toUpperCase()}
@@ -472,7 +472,7 @@ function TasksPageContent() {
                 onTaskMove={handleTaskMove}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
-                onNewTask={(status) => {
+                onNewTask={() => {
                   setDialogMode('create')
                   setSelectedTask(null)
                   setInitialDate(undefined)

@@ -1,10 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { Layout } from "@/components/Layout"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { 
   Pencil, 
   Type, 
@@ -12,21 +10,24 @@ import {
   Circle, 
   Image as ImageIcon,
   Undo2,
+  Redo2,
   Eraser,
   MousePointer2,
-  Trash2,
-  RotateCcw,
   Save,
   Download,
-  ArrowLeft
+  ArrowLeft,
+  Share2,
+  Palette,
+  Trash2
 } from "lucide-react"
-import { Canvas as FabricCanvas, Circle as FabricCircle, Rect, IText, PencilBrush, Image as FabricImage } from "fabric"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Canvas as FabricCanvas, Rect, IText, Line, PencilBrush, Image as FabricImage, Group, Ellipse, type FabricObject } from "fabric"
 import { toast } from "sonner"
 import { uploadApi, whiteboardApi } from "@/lib/api"
 import { useParams, useRouter } from "next/navigation"
 import { AuthGuard } from "@/components/AuthGuard"
 
-type Tool = 'select' | 'draw' | 'eraser' | 'text' | 'rectangle' | 'circle'
+type Tool = 'select' | 'draw' | 'eraser' | 'text' | 'rectangle' | 'circle' | 'arrow'
 type Color = string
 
 const COLORS: { value: Color; label: string }[] = [
@@ -39,6 +40,43 @@ const COLORS: { value: Color; label: string }[] = [
   { value: '#a855f7', label: 'Púrpura' },
   { value: '#f97316', label: 'Naranja' },
 ]
+
+const ARROW_HEAD_LENGTH = 14
+const ARROW_HEAD_ANGLE = (25 * Math.PI) / 180
+
+function createArrow(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  opts: { stroke: string; strokeWidth: number; strokeDashArray?: number[] }
+) {
+  const angle = Math.atan2(y2 - y1, x2 - x1)
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const lineEndX = x2 - ARROW_HEAD_LENGTH * cos
+  const lineEndY = y2 - ARROW_HEAD_LENGTH * sin
+  const line = new Line([x1, y1, lineEndX, lineEndY], {
+    stroke: opts.stroke,
+    strokeWidth: opts.strokeWidth,
+    strokeDashArray: opts.strokeDashArray,
+  })
+  const tipX = x2
+  const tipY = y2
+  const leftX = x2 - ARROW_HEAD_LENGTH * Math.cos(angle + ARROW_HEAD_ANGLE)
+  const leftY = y2 - ARROW_HEAD_LENGTH * Math.sin(angle + ARROW_HEAD_ANGLE)
+  const rightX = x2 - ARROW_HEAD_LENGTH * Math.cos(angle - ARROW_HEAD_ANGLE)
+  const rightY = y2 - ARROW_HEAD_LENGTH * Math.sin(angle - ARROW_HEAD_ANGLE)
+  const headOpts = {
+    stroke: opts.stroke,
+    strokeWidth: opts.strokeWidth,
+    strokeDashArray: opts.strokeDashArray,
+  }
+  const legLeft = new Line([tipX, tipY, leftX, leftY], headOpts)
+  const legRight = new Line([tipX, tipY, rightX, rightY], headOpts)
+  const group = new Group([line, legLeft, legRight], { hasBorders: false, hasControls: true })
+  return group
+}
 
 function dataURLtoFile(dataurl: string, filename: string) {
     const arr = dataurl.split(',')
@@ -56,79 +94,97 @@ export default function BoardEditor() {
   const { id } = useParams()
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerRect, setContainerRect] = useState({ w: 0, h: 0 })
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null)
   const [activeTool, setActiveTool] = useState<Tool>('draw')
   const [activeColor, setActiveColor] = useState<Color>('#000000')
   const [strokeWidth, setStrokeWidth] = useState(3)
+  const [shapeFill, setShapeFill] = useState<'none' | 'solid'>('solid')
+  const [strokeStyle, setStrokeStyle] = useState<'solid' | 'dashed' | 'dotted'>('solid')
+  const [roundedCorners, setRoundedCorners] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const strokeDashArray = useMemo(
+    () => (strokeStyle === 'solid' ? undefined : strokeStyle === 'dashed' ? [10, 5] : [2, 4]),
+    [strokeStyle]
+  )
   const [boardTitle, setBoardTitle] = useState("")
+  const [redoStack, setRedoStack] = useState<Record<string, unknown>[]>([])
 
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null)
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const lastCanvasPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const shiftKeyRef = useRef(false)
+  const previewRef = useRef<FabricObject | null>(null)
+  const drawStyleRef = useRef({ activeColor, strokeWidth, shapeFill, strokeDashArray, roundedCorners })
+  drawStyleRef.current = { activeColor, strokeWidth, shapeFill, strokeDashArray, roundedCorners }
+
+  // ResizeObserver: medir contenedor del canvas para tamaño dinámico
   useEffect(() => {
-    if (!canvasRef.current || !id) return
-
-    // Calcular dimensiones responsivas
-    const isMobile = window.innerWidth < 768
-    const isTablet = window.innerWidth < 1024
-    const sidebarWidth = isMobile ? 0 : (isTablet ? 64 : 64)
-    const headerHeight = 64
-    const padding = isMobile ? 16 : (isTablet ? 24 : 32)
-    const toolbarWidth = isMobile ? 0 : (isTablet ? 80 : 80)
-    
-    const containerWidth = Math.min(1200, window.innerWidth - sidebarWidth - toolbarWidth - padding * 2)
-    const containerHeight = Math.min(700, window.innerHeight - headerHeight - padding * 2)
-
-    const canvas = new FabricCanvas(canvasRef.current, {
-      width: containerWidth,
-      height: containerHeight,
-      backgroundColor: '#ffffff',
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries: ResizeObserverEntry[]) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        setContainerRect({ w: width, h: height })
+      }
     })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
-    // Initialize drawing brush
-    const brush = new PencilBrush(canvas)
-    brush.color = activeColor
-    brush.width = 3
-    canvas.freeDrawingBrush = brush
+  // Crear o redimensionar canvas cuando hay dimensiones y id
+  useEffect(() => {
+    if (!id || !canvasRef.current || containerRect.w <= 0 || containerRect.h <= 0) return
 
-    setFabricCanvas(canvas)
-    
-    // Cargar tablero desde la nube por ID
-    const loadBoard = async () => {
+    const loadBoard = async (canvas: FabricCanvas) => {
       try {
         const { whiteboard } = await whiteboardApi.getById(id as string)
         setBoardTitle(whiteboard.title)
-        
-        // Validación defensiva extrema para evitar crashes de Fabric
-        const isValidContent = 
-            whiteboard && 
-            whiteboard.content && 
-            typeof whiteboard.content === 'object' &&
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            Array.isArray((whiteboard.content as any).objects) &&
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (whiteboard.content as any).objects.length > 0;
-
+        const isValidContent =
+          whiteboard?.content &&
+          typeof whiteboard.content === 'object' &&
+          Array.isArray((whiteboard.content as { objects?: unknown[] }).objects) &&
+          (whiteboard.content as { objects: unknown[] }).objects.length > 0
         if (isValidContent) {
           try {
-              // Clonar para evitar mutaciones
-              const contentToLoad = JSON.parse(JSON.stringify(whiteboard.content));
-              await canvas.loadFromJSON(contentToLoad as Record<string, unknown>);
-              canvas.requestRenderAll();
-              toast.success('Tablero cargado');
-          } catch (jsonError) {
-              console.warn("Advertencia: No se pudo restaurar el estado del tablero (posiblemente vacío o versión incompatible). Se inicia lienzo limpio.", jsonError);
+            const contentToLoad = JSON.parse(JSON.stringify(whiteboard.content))
+            await canvas.loadFromJSON(contentToLoad as Record<string, unknown>)
+            canvas.requestRenderAll()
+            toast.success('Tablero cargado')
+          } catch {
+            console.warn('No se pudo restaurar el tablero; se inicia lienzo limpio.')
           }
         }
       } catch (error) {
-        console.error("Error loading board:", error)
-        toast.error("Error al cargar el tablero")
+        console.error('Error loading board:', error)
+        toast.error('Error al cargar el tablero')
       }
     }
-    loadBoard()
 
-    return () => {
-      canvas.dispose()
+    if (!fabricCanvas) {
+      const canvas = new FabricCanvas(canvasRef.current, {
+        width: containerRect.w,
+        height: containerRect.h,
+        backgroundColor: 'transparent',
+      })
+      const brush = new PencilBrush(canvas)
+      brush.color = activeColor
+      brush.width = strokeWidth
+      canvas.freeDrawingBrush = brush
+      setFabricCanvas(canvas)
+      loadBoard(canvas)
+      return () => {
+        canvas.dispose()
+        setFabricCanvas(null)
+      }
     }
-  }, [id, activeColor])
+
+    fabricCanvas.setDimensions({ width: containerRect.w, height: containerRect.h })
+    fabricCanvas.requestRenderAll()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fabricCanvas set in same effect, omit to avoid recreate on brush change
+  }, [id, containerRect.w, containerRect.h])
 
   const handleDeleteSelected = useCallback(() => {
     if (!fabricCanvas) return
@@ -144,35 +200,23 @@ export default function BoardEditor() {
   }, [fabricCanvas])
 
   useEffect(() => {
-    if (!fabricCanvas) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input or textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const activeObject = fabricCanvas.getActiveObject()
-        // Don't delete if editing text
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (activeObject && (activeObject as any).isEditing) return
-        
-        handleDeleteSelected()
-      }
+    const canvas = fabricCanvas
+    const el = containerRef.current
+    if (!canvas || !el) return
+    const onMove = (e: MouseEvent) => {
+      const p = canvas.getPointer(e)
+      if (p) lastCanvasPointerRef.current = { x: p.x, y: p.y }
     }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [fabricCanvas, handleDeleteSelected])
+    el.addEventListener('mousemove', onMove)
+    return () => el.removeEventListener('mousemove', onMove)
+  }, [fabricCanvas])
 
   useEffect(() => {
     if (!fabricCanvas) return
 
     if (activeTool === 'draw' || activeTool === 'eraser') {
-        // Fabric.js requires direct property mutation - these are side effects on external canvas
-        // eslint-disable-next-line react-hooks/immutability
         fabricCanvas.isDrawingMode = true
         if (fabricCanvas.freeDrawingBrush) {
-            // eslint-disable-next-line react-hooks/immutability
             fabricCanvas.freeDrawingBrush.color = activeTool === 'eraser' ? '#ffffff' : activeColor
             fabricCanvas.freeDrawingBrush.width = activeTool === 'eraser' ? 20 : strokeWidth
         }
@@ -181,94 +225,376 @@ export default function BoardEditor() {
     }
   }, [activeTool, activeColor, strokeWidth, fabricCanvas])
 
-  const handleToolClick = (tool: Tool) => {
-    setActiveTool(tool)
+  // Dibujo por arrastre tipo Excalidraw: rect, circle, arrow
+  useEffect(() => {
+    const canvas = fabricCanvas
+    if (!canvas) return
+    const shapeTools: Tool[] = ['rectangle', 'circle', 'arrow']
+    if (!shapeTools.includes(activeTool)) return
 
+    const removePreview = () => {
+      if (previewRef.current) {
+        canvas.remove(previewRef.current)
+        previewRef.current = null
+        canvas.requestRenderAll()
+      }
+    }
+
+    const onDown = (opt: { e: MouseEvent | TouchEvent; target?: FabricObject | null }) => {
+      if (opt.target) return
+      const pointer = canvas.getPointer(opt.e as MouseEvent)
+      if (!pointer) return
+      drawStartRef.current = { x: pointer.x, y: pointer.y }
+    }
+
+    const onMove = (opt: { e: MouseEvent | TouchEvent }) => {
+      if (!drawStartRef.current) return
+      const pointer = canvas.getPointer(opt.e as MouseEvent)
+      if (!pointer) return
+      shiftKeyRef.current = 'shiftKey' in opt.e ? opt.e.shiftKey : false
+      lastPointerRef.current = { x: pointer.x, y: pointer.y }
+      const start = drawStartRef.current
+      const style = drawStyleRef.current
+      const minSize = 4
+      const w = pointer.x - start.x
+      const h = pointer.y - start.y
+      const left = Math.min(start.x, pointer.x)
+      const top = Math.min(start.y, pointer.y)
+      const width = Math.max(minSize, Math.abs(w))
+      const height = Math.max(minSize, Math.abs(h))
+
+      const ellipseRadius = (rx: number, ry: number, forceCircle: boolean) => {
+        if (forceCircle) {
+          const r = Math.min(rx, ry)
+          return { rx: r, ry: r }
+        }
+        return { rx, ry }
+      }
+
+      if (!previewRef.current) {
+        if (activeTool === 'rectangle') {
+          const rect = new Rect({
+            left,
+            top,
+            width,
+            height,
+            fill: 'transparent',
+            stroke: style.activeColor,
+            strokeWidth: 2,
+            strokeDashArray: [4, 4],
+            ...(style.roundedCorners ? { rx: 8, ry: 8 } : {}),
+          })
+          rect.selectable = false
+          canvas.add(rect)
+          previewRef.current = rect
+        } else if (activeTool === 'circle') {
+          const cx = (start.x + pointer.x) / 2
+          const cy = (start.y + pointer.y) / 2
+          const rx = Math.max(minSize / 2, Math.abs(pointer.x - start.x) / 2)
+          const ry = Math.max(minSize / 2, Math.abs(pointer.y - start.y) / 2)
+          const { rx: rxa, ry: rya } = ellipseRadius(rx, ry, shiftKeyRef.current)
+          const ellipse = new Ellipse({
+            left: cx,
+            top: cy,
+            rx: rxa,
+            ry: rya,
+            fill: 'transparent',
+            stroke: style.activeColor,
+            strokeWidth: 2,
+            strokeDashArray: [4, 4],
+          })
+          ellipse.selectable = false
+          canvas.add(ellipse)
+          previewRef.current = ellipse
+        } else {
+          const arrow = createArrow(start.x, start.y, pointer.x, pointer.y, {
+            stroke: style.activeColor,
+            strokeWidth: style.strokeWidth || 2,
+            strokeDashArray: style.strokeDashArray,
+          })
+          arrow.selectable = false
+          canvas.add(arrow)
+          previewRef.current = arrow
+        }
+        canvas.requestRenderAll()
+        return
+      }
+
+      const obj = previewRef.current
+      if (activeTool === 'rectangle' && obj.type === 'rect') {
+        obj.set({ left, top, width, height })
+      } else if (activeTool === 'circle' && obj.type === 'ellipse') {
+        const cx = (start.x + pointer.x) / 2
+        const cy = (start.y + pointer.y) / 2
+        const rx = Math.max(minSize / 2, Math.abs(pointer.x - start.x) / 2)
+        const ry = Math.max(minSize / 2, Math.abs(pointer.y - start.y) / 2)
+        const { rx: rxa, ry: rya } = ellipseRadius(rx, ry, shiftKeyRef.current)
+        obj.set({ left: cx, top: cy, rx: rxa, ry: rya })
+      } else if (activeTool === 'arrow' && obj.type === 'group') {
+        canvas.remove(obj)
+        const arrow = createArrow(start.x, start.y, pointer.x, pointer.y, {
+          stroke: style.activeColor,
+          strokeWidth: style.strokeWidth || 2,
+          strokeDashArray: style.strokeDashArray,
+        })
+        arrow.selectable = false
+        canvas.add(arrow)
+        previewRef.current = arrow
+      }
+      canvas.requestRenderAll()
+    }
+
+    const MIN_DRAG_DISTANCE = 8
+
+    const onUp = () => {
+      if (!drawStartRef.current) return
+      const start = drawStartRef.current
+      const end = lastPointerRef.current ?? start
+      lastPointerRef.current = null
+      const style = drawStyleRef.current
+      removePreview()
+      const dragDistance = Math.hypot(end.x - start.x, end.y - start.y)
+      if (dragDistance < MIN_DRAG_DISTANCE) {
+        drawStartRef.current = null
+        return
+      }
+      const minSize = 4
+      const w = end.x - start.x
+      const h = end.y - start.y
+      const left = Math.min(start.x, end.x)
+      const top = Math.min(start.y, end.y)
+      const width = Math.max(minSize, Math.abs(w))
+      const height = Math.max(minSize, Math.abs(h))
+
+      if (activeTool === 'rectangle') {
+        const rect = new Rect({
+          left,
+          top,
+          width,
+          height,
+          fill: style.shapeFill === 'solid' ? style.activeColor : 'transparent',
+          stroke: style.activeColor,
+          strokeWidth: 2,
+          strokeDashArray: style.strokeDashArray ?? undefined,
+          ...(style.roundedCorners ? { rx: 12, ry: 12 } : {}),
+        })
+        canvas.add(rect)
+        canvas.setActiveObject(rect)
+        toast.success('Rectángulo añadido')
+      } else if (activeTool === 'circle') {
+        const cx = (start.x + end.x) / 2
+        const cy = (start.y + end.y) / 2
+        const rx = Math.max(minSize / 2, Math.abs(end.x - start.x) / 2)
+        const ry = Math.max(minSize / 2, Math.abs(end.y - start.y) / 2)
+        const forceCircle = shiftKeyRef.current
+        const { rx: rxa, ry: rya } = forceCircle
+          ? { rx: Math.min(rx, ry), ry: Math.min(rx, ry) }
+          : { rx, ry }
+        const ellipse = new Ellipse({
+          left: cx,
+          top: cy,
+          rx: rxa,
+          ry: rya,
+          fill: style.shapeFill === 'solid' ? style.activeColor : 'transparent',
+          stroke: style.activeColor,
+          strokeWidth: 3,
+          strokeDashArray: style.strokeDashArray ?? undefined,
+        })
+        canvas.add(ellipse)
+        canvas.setActiveObject(ellipse)
+        toast.success(forceCircle ? 'Círculo añadido' : 'Elipse añadida')
+      } else {
+        const arrow = createArrow(start.x, start.y, end.x, end.y, {
+          stroke: style.activeColor,
+          strokeWidth: style.strokeWidth || 2,
+          strokeDashArray: style.strokeDashArray,
+        })
+        canvas.add(arrow)
+        canvas.setActiveObject(arrow)
+        toast.success('Flecha añadida')
+      }
+      canvas.requestRenderAll()
+      setRedoStack([])
+      drawStartRef.current = null
+    }
+
+    canvas.on('mouse:down', onDown)
+    canvas.on('mouse:move', onMove)
+    canvas.on('mouse:up', onUp)
+    return () => {
+      canvas.off('mouse:down', onDown)
+      canvas.off('mouse:move', onMove)
+      canvas.off('mouse:up', onUp)
+      drawStartRef.current = null
+      removePreview()
+    }
+  }, [activeTool, fabricCanvas])
+
+  // Aplicar estilo actual al objeto seleccionado (rect, circle, line, arrow group)
+  useEffect(() => {
+    if (!fabricCanvas) return
+    const obj = fabricCanvas.getActiveObject()
+    if (!obj || Array.isArray(obj)) return
+    const fill = shapeFill === 'solid' ? activeColor : 'transparent'
+    const dash = strokeDashArray ?? undefined
+    if (obj.type === 'rect') {
+      obj.set({ fill, stroke: activeColor, strokeDashArray: dash, ...(roundedCorners ? { rx: 12, ry: 12 } : { rx: 0, ry: 0 }) })
+    } else if (obj.type === 'circle' || obj.type === 'ellipse') {
+      obj.set({ fill, stroke: activeColor, strokeDashArray: dash })
+    } else if (obj.type === 'line') {
+      obj.set({ stroke: activeColor, strokeDashArray: dash })
+    } else if (obj.type === 'group') {
+      const group = obj as unknown as { getObjects: () => FabricObject[] }
+      const children = group.getObjects?.() ?? []
+      children.forEach((child: FabricObject) => {
+        if (child.type === 'line') child.set({ stroke: activeColor, strokeDashArray: dash })
+      })
+    } else {
+      return
+    }
+    fabricCanvas.requestRenderAll()
+  }, [shapeFill, strokeStyle, roundedCorners, activeColor, fabricCanvas, strokeDashArray])
+
+  // Limpiar pila de rehacer al dibujar (path:created)
+  useEffect(() => {
+    if (!fabricCanvas) return
+    const clearRedo = () => setRedoStack([])
+    fabricCanvas.on('path:created', clearRedo)
+    return () => { fabricCanvas.off('path:created', clearRedo) }
+  }, [fabricCanvas])
+
+  const handleToolClick = useCallback(
+    (tool: Tool, position?: { x: number; y: number }) => {
+      setActiveTool(tool)
+      if (!fabricCanvas) return
+      if (tool === 'rectangle' || tool === 'circle' || tool === 'arrow') {
+        toast.info('Arrastra en el lienzo para dibujar')
+        return
+      }
+      if (tool === 'text') {
+        const pos = position ?? lastCanvasPointerRef.current ?? { x: 100, y: 100 }
+        const text = new IText('Escribe aquí...', {
+          left: pos.x,
+          top: pos.y,
+          fill: activeColor,
+          fontSize: 24,
+          fontFamily: 'Inter, sans-serif',
+        })
+        fabricCanvas.add(text)
+        fabricCanvas.setActiveObject(text)
+        fabricCanvas.renderAll()
+        toast.success('Texto añadido - haz doble clic para editar')
+        setRedoStack([])
+      }
+    },
+    [fabricCanvas, activeColor]
+  )
+
+  useEffect(() => {
     if (!fabricCanvas) return
 
-    if (tool === 'rectangle') {
-      const rect = new Rect({
-        left: 100,
-        top: 100,
-        fill: activeColor,
-        width: 150,
-        height: 100,
-        stroke: activeColor,
-        strokeWidth: 2,
-      })
-      fabricCanvas.add(rect)
-      fabricCanvas.setActiveObject(rect)
-      fabricCanvas.renderAll()
-      toast.success('Rectángulo añadido')
-    } else if (tool === 'circle') {
-      const circle = new FabricCircle({
-        left: 100,
-        top: 100,
-        fill: 'transparent',
-        radius: 60,
-        stroke: activeColor,
-        strokeWidth: 3,
-      })
-      fabricCanvas.add(circle)
-      fabricCanvas.setActiveObject(circle)
-      fabricCanvas.renderAll()
-      toast.success('Círculo añadido')
-    } else if (tool === 'text') {
-      const text = new IText('Escribe aquí...', {
-        left: 100,
-        top: 100,
-        fill: activeColor,
-        fontSize: 24,
-        fontFamily: 'Inter, sans-serif',
-      })
-      fabricCanvas.add(text)
-      fabricCanvas.setActiveObject(text)
-      fabricCanvas.renderAll()
-      toast.success('Texto añadido - haz doble clic para editar')
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if ((e.target as HTMLElement)?.isContentEditable) return
+      if (e.ctrlKey || e.metaKey) return
+
+      const key = e.key.toLowerCase()
+      const toolByKey: Record<string, Tool> = {
+        v: 'select',
+        p: 'draw',
+        t: 'text',
+        r: 'rectangle',
+        c: 'circle',
+        a: 'arrow',
+        e: 'eraser',
+      }
+      const tool = toolByKey[key]
+      if (tool) {
+        e.preventDefault()
+        if (tool === 'text') {
+          handleToolClick('text', lastCanvasPointerRef.current ?? undefined)
+        } else if (tool === 'rectangle' || tool === 'circle' || tool === 'arrow') {
+          handleToolClick(tool)
+        } else {
+          setActiveTool(tool)
+        }
+        return
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const activeObject = fabricCanvas.getActiveObject()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (activeObject && (activeObject as any).isEditing) return
+        handleDeleteSelected()
+      }
     }
-  }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [fabricCanvas, handleDeleteSelected, handleToolClick])
 
   const handleUndo = () => {
     if (!fabricCanvas) return
     const objects = fabricCanvas.getObjects()
     if (objects.length > 0) {
-      fabricCanvas.remove(objects[objects.length - 1])
+      const last = objects[objects.length - 1]
+      setRedoStack(prev => [...prev, last.toJSON() as Record<string, unknown>])
+      fabricCanvas.remove(last)
       fabricCanvas.renderAll()
       toast.info('Deshacer')
     }
   }
 
+  const handleRedo = () => {
+    if (!fabricCanvas || redoStack.length === 0) return
+    const json = redoStack[redoStack.length - 1]
+    const current = fabricCanvas.toJSON() as { version?: string; objects?: Record<string, unknown>[] }
+    const nextObjects = [...(current.objects || []), json]
+    fabricCanvas.loadFromJSON({ ...current, objects: nextObjects } as Record<string, unknown>, () => {
+      fabricCanvas.requestRenderAll()
+    })
+    setRedoStack(prev => prev.slice(0, -1))
+    toast.info('Rehacer')
+  }
+
   const handleClear = () => {
     if (!fabricCanvas) return
     fabricCanvas.clear()
-    // Fabric.js requires direct property mutation - side effect on external canvas
-    // eslint-disable-next-line react-hooks/immutability
-    fabricCanvas.backgroundColor = '#ffffff'
+    fabricCanvas.backgroundColor = 'transparent'
     fabricCanvas.renderAll()
+    setRedoStack([])
     toast.info('Tablero limpiado')
   }
 
   const handleSave = async () => {
-    if (!fabricCanvas || !id) return
-    
+    const validId = typeof id === 'string' && id && id !== 'undefined'
+    if (!fabricCanvas || !validId) {
+      if (!validId) toast.error('No se puede guardar: ID del tablero no válido. Vuelve a la lista de pizarras.')
+      return
+    }
+
     const toastId = toast.loading("Guardando tablero...")
 
     try {
       const json = fabricCanvas.toJSON()
-      
+      const prevBg = fabricCanvas.backgroundColor
+      fabricCanvas.backgroundColor = '#ffffff'
+      fabricCanvas.requestRenderAll()
       // 1. Generar miniatura (baja calidad para que sea rápido)
       const dataURL = fabricCanvas.toDataURL({
         format: 'jpeg',
         quality: 0.5,
-        multiplier: 0.5, // Mitad de tamaño
+        multiplier: 0.5,
       })
+      fabricCanvas.backgroundColor = prevBg
+      fabricCanvas.requestRenderAll()
 
       // 2. Convertir a archivo y subir
       const file = dataURLtoFile(dataURL, 'thumbnail.jpg')
       const { url: thumbnailUrl } = await uploadApi.uploadFile(file, 'whiteboard-thumbs')
       
       // 3. Guardar en backend
-      await whiteboardApi.update(id as string, { content: json, thumbnail: thumbnailUrl })
+      await whiteboardApi.update(id, { content: json, thumbnail: thumbnailUrl })
       
       toast.success('¡Cambios guardados!', { id: toastId })
     } catch (error) {
@@ -279,11 +605,16 @@ export default function BoardEditor() {
 
   const handleExport = () => {
     if (!fabricCanvas) return
+    const prevBg = fabricCanvas.backgroundColor
+    fabricCanvas.backgroundColor = '#ffffff'
+    fabricCanvas.requestRenderAll()
     const dataURL = fabricCanvas.toDataURL({
       format: 'png',
       quality: 1,
       multiplier: 1,
     })
+    fabricCanvas.backgroundColor = prevBg
+    fabricCanvas.requestRenderAll()
     const link = document.createElement('a')
     link.download = `${boardTitle || 'tablero'}.png`
     link.href = dataURL
@@ -299,10 +630,18 @@ export default function BoardEditor() {
 
     try {
       const response = await uploadApi.uploadFile(file, 'whiteboard')
-      // Use proxy to avoid CORS issues when saving canvas
       const proxyUrl = uploadApi.getProxyUrl(response.url)
-      const fabricImage = await FabricImage.fromURL(proxyUrl, { crossOrigin: 'anonymous' })
-      
+      const res = await fetch(proxyUrl, { credentials: 'include' })
+      if (!res.ok) throw new Error('No se pudo cargar la imagen')
+      const blob = await res.blob()
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Error al leer la imagen'))
+        reader.readAsDataURL(blob)
+      })
+      const fabricImage = await FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
+
       fabricImage.set({
         left: 100,
         top: 100,
@@ -323,180 +662,133 @@ export default function BoardEditor() {
 
   return (
     <AuthGuard>
-      <Layout>
-        <div className="space-y-2 sm:space-y-3 md:space-y-4 max-w-7xl mx-auto px-1 sm:px-0">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 md:gap-4">
+      <Layout fullWidth>
+        <div className="flex flex-col h-full w-full min-h-0">
+          {/* Top bar: volver + título | Undo, Redo, Share, Export, Guardar */}
+          <header className="flex-shrink-0 h-12 flex items-center justify-between gap-2 px-3 border-b bg-background">
             <div className="flex items-center gap-2 min-w-0">
-              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0" onClick={() => router.push('/board')}>
-                  <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Button variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => router.push('/board')}>
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold truncate max-w-[200px] sm:max-w-[300px]">
-                  {boardTitle || 'Editando Tablero'}
+              <h1 className="text-base font-semibold truncate max-w-[180px] sm:max-w-xs">
+                {boardTitle || 'Editando Tablero'}
               </h1>
             </div>
-            
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={handleUndo} title="Deshacer">
-                <Undo2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleUndo} title="Deshacer">
+                <Undo2 className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={handleDeleteSelected} title="Eliminar seleccionado">
-                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleRedo} disabled={redoStack.length === 0} title="Rehacer">
+                <Redo2 className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" onClick={handleClear} title="Limpiar todo">
-                <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => toast.info('Compartir próximamente')} title="Compartir">
+                <Share2 className="h-4 w-4" />
               </Button>
-              <Separator orientation="vertical" className="h-6 sm:h-8 hidden sm:block" />
-              <Button variant="outline" className="gap-1.5 sm:gap-2 h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3" onClick={handleSave}>
-                <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Guardar</span>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleExport} title="Exportar">
+                <Download className="h-4 w-4" />
               </Button>
-              <Button variant="outline" className="gap-1.5 sm:gap-2 h-8 sm:h-9 text-xs sm:text-sm px-2 sm:px-3" onClick={handleExport}>
-                <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Exportar</span>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => window.confirm('¿Borrar todo el contenido del tablero?') && handleClear()} title="Limpiar tablero">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              <Button variant="default" size="sm" className="h-9 gap-1.5" onClick={handleSave}>
+                <Save className="h-4 w-4" />
+                Guardar
               </Button>
             </div>
-          </div>
+          </header>
 
-          {/* Tools & Canvas */}
-          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
-            {/* Toolbar */}
-            <Card className="shadow-card p-2 sm:p-3 h-fit w-full lg:w-auto">
-              <div className="space-y-3 sm:space-y-2">
-                {/* Tools Grid - Horizontal en móvil, Vertical en desktop */}
-                <div className="grid grid-cols-7 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:space-y-0">
-                <Button
-                  variant={activeTool === 'select' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => setActiveTool('select')}
-                  title="Seleccionar (Mover objetos)"
-                >
-                  <MousePointer2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                <Button
-                  variant={activeTool === 'draw' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => setActiveTool('draw')}
-                  title="Lápiz"
-                >
-                  <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                <Button
-                  variant={activeTool === 'eraser' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => setActiveTool('eraser')}
-                  title="Borrador"
-                >
-                  <Eraser className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                <Button
-                  variant={activeTool === 'text' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => handleToolClick('text')}
-                  title="Texto"
-                >
-                  <Type className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                <Button
-                  variant={activeTool === 'rectangle' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => handleToolClick('rectangle')}
-                  title="Rectángulo"
-                >
-                  <Square className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                <Button
-                  variant={activeTool === 'circle' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => handleToolClick('circle')}
-                  title="Círculo"
-                >
-                  <Circle className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                <Button
-                  variant={activeTool === 'circle' ? 'secondary' : 'ghost'}
-                  size="icon"
-                  className="w-full hover:bg-accent h-9 sm:h-10 lg:h-10"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Subir Imagen"
-                >
-                  <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-                </div>
-                
-                <Separator className="my-2 lg:my-2" />
-
-                {/* Stroke Width */}
-                <div className="space-y-2 px-1">
-                  <label className="text-[10px] sm:text-xs font-medium text-muted-foreground">Grosor</label>
-                  <div className="flex gap-1.5 sm:gap-1">
-                    {[2, 4, 6, 10].map((width) => (
-                      <button
-                        key={width}
-                        onClick={() => setStrokeWidth(width)}
-                        className={`flex-1 h-7 sm:h-6 rounded flex items-center justify-center hover:bg-accent transition-colors ${strokeWidth === width ? 'bg-accent' : ''}`}
-                        title={`Grosor ${width}px`}
-                      >
-                        <div 
-                          className="bg-foreground rounded-full" 
-                          style={{ width: Math.min(width + 2, 14), height: Math.min(width + 2, 14) }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <Separator className="my-2 lg:my-2" />
-                
-                {/* Color Picker */}
-                <div className="space-y-2">
-                  <div className="grid grid-cols-4 gap-1.5 sm:gap-1.5">
-                    {COLORS.map((color) => (
-                      <button
-                        key={color.value}
-                        onClick={() => setActiveColor(color.value)}
-                        className={`w-full aspect-square rounded border-2 transition-all ${
-                          activeColor === color.value ? 'border-foreground scale-110 ring-1 ring-offset-1 ring-foreground' : 'border-border'
-                        }`}
-                        style={{ backgroundColor: color.value }}
-                        title={color.label}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2 pt-1">
-                      <label className="text-[10px] sm:text-xs font-medium text-muted-foreground whitespace-nowrap">Personalizado:</label>
-                      <input 
-                          type="color" 
-                          value={activeColor}
-                          onChange={(e) => setActiveColor(e.target.value)}
-                          className="h-7 sm:h-6 w-full sm:flex-1 cursor-pointer rounded border border-border p-0"
-                      />
-                  </div>
+          {/* Cuerpo: toolbar + canvas */}
+          <div className="flex-1 flex min-h-0 relative">
+            {/* Toolbar vertical (referencia) */}
+            <aside className="flex-shrink-0 w-14 flex flex-col items-center py-2 gap-1 border-r bg-muted/30">
+              <Button variant={activeTool === 'select' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => setActiveTool('select')} title="Seleccionar (V)">
+                <MousePointer2 className="h-5 w-5" />
+              </Button>
+              <Button variant={activeTool === 'draw' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => setActiveTool('draw')} title="Lápiz (P)">
+                <Pencil className="h-5 w-5" />
+              </Button>
+              <Button variant={activeTool === 'text' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => handleToolClick('text')} title="Texto (T)">
+                <Type className="h-5 w-5" />
+              </Button>
+              <Button variant={activeTool === 'rectangle' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => handleToolClick('rectangle')} title="Rectángulo (R)">
+                <Square className="h-5 w-5" />
+              </Button>
+              <Button variant={activeTool === 'circle' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => handleToolClick('circle')} title="Círculo / Elipse (C) (Shift = círculo perfecto)">
+                <Circle className="h-5 w-5" />
+              </Button>
+              <Button variant={activeTool === 'arrow' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => handleToolClick('arrow')} title="Flecha (A)">
+                <ArrowLeft className="h-5 w-5 rotate-[-45deg]" />
+              </Button>
+              <Button variant={activeTool === 'eraser' ? 'secondary' : 'ghost'} size="icon" className="h-10 w-10" onClick={() => setActiveTool('eraser')} title="Borrador (E)">
+                <Eraser className="h-5 w-5" />
+              </Button>
+              <div className="flex-1 min-h-2" />
+              {/* Color principal + secundario */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full border-2 border-border shadow-inner" style={{ backgroundColor: activeColor }} title="Color actual" />
+                <div className="grid grid-cols-2 gap-0.5">
+                  {COLORS.slice(0, 4).map((c) => (
+                    <button key={c.value} className={`w-4 h-4 rounded border ${activeColor === c.value ? 'border-foreground ring-1' : 'border-border'}`} style={{ backgroundColor: c.value }} onClick={() => setActiveColor(c.value)} title={c.label} />
+                  ))}
                 </div>
               </div>
-            </Card>
-
-            {/* Canvas */}
-            <Card className="flex-1 shadow-card p-2 sm:p-3 md:p-6 bg-muted/30 overflow-auto min-h-[400px] sm:min-h-[500px]">
-              <div className="overflow-auto h-full w-full">
-                <canvas ref={canvasRef} className="border border-border rounded-lg shadow-sm max-w-full block mx-auto" />
+              {/* Grosor */}
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-[10px] text-muted-foreground">Grosor</span>
+                <div className="flex flex-col gap-0.5">
+                  {[2, 4, 6].map((w) => (
+                    <button key={w} className={`w-6 h-2 rounded ${strokeWidth === w ? 'bg-primary' : 'bg-muted-foreground/30'}`} onClick={() => setStrokeWidth(w)} title={`${w}px`} />
+                  ))}
+                </div>
               </div>
-            </Card>
+              {/* Estilo (relleno, trazo, esquinas) */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-10 w-10" title="Estilo de forma">
+                    <Palette className="h-5 w-5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56" align="start" side="right">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Relleno</p>
+                      <div className="flex gap-1">
+                        <Button variant={shapeFill === 'none' ? 'secondary' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setShapeFill('none')}>Sin relleno</Button>
+                        <Button variant={shapeFill === 'solid' ? 'secondary' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setShapeFill('solid')}>Con relleno</Button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Trazo</p>
+                      <div className="flex gap-1 flex-wrap">
+                        <Button variant={strokeStyle === 'solid' ? 'secondary' : 'outline'} size="sm" className="text-xs" onClick={() => setStrokeStyle('solid')}>Sólido</Button>
+                        <Button variant={strokeStyle === 'dashed' ? 'secondary' : 'outline'} size="sm" className="text-xs" onClick={() => setStrokeStyle('dashed')}>Discontinuo</Button>
+                        <Button variant={strokeStyle === 'dotted' ? 'secondary' : 'outline'} size="sm" className="text-xs" onClick={() => setStrokeStyle('dotted')}>Punteado</Button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Esquinas (rectángulos)</p>
+                      <div className="flex gap-1">
+                        <Button variant={!roundedCorners ? 'secondary' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setRoundedCorners(false)}>Rectas</Button>
+                        <Button variant={roundedCorners ? 'secondary' : 'outline'} size="sm" className="flex-1 text-xs" onClick={() => setRoundedCorners(true)}>Redondeadas</Button>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </aside>
+
+            {/* Canvas con grid punteado */}
+            <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden relative bg-[#fafafa]" style={{ backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+              <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+            </div>
+
+            {/* Botón flotante imagen */}
+            <Button variant="secondary" size="icon" className="absolute bottom-4 left-20 h-12 w-12 rounded-full shadow-lg z-10" onClick={() => fileInputRef.current?.click()} title="Subir imagen">
+              <ImageIcon className="h-5 w-5" />
+            </Button>
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
         </div>
       </Layout>
     </AuthGuard>

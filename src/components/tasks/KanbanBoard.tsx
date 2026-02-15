@@ -161,7 +161,7 @@ export function KanbanBoard({
             wipLimit: s.limit
           }])
         }
-      } catch (e) {
+      } catch {
         toast.error("Error al crear la sección")
       }
     } else {
@@ -299,9 +299,6 @@ export function KanbanBoard({
     setDragOverColumn(columnId)
   }
 
-  const handleDragLeave = () => {
-    setDragOverColumn(null)
-  }
 
   // Loading state
   if (loading) {

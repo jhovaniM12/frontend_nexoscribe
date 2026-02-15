@@ -1,12 +1,12 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Folder, Calendar, Tag as TagIcon, MoreVertical, Pin, Archive, ArchiveRestore, Trash2 } from "lucide-react"
+import { Folder, Pin, Archive, ArchiveRestore, Trash2 } from "lucide-react"
 import React from 'react'
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 import Link from "next/link"
 import { type Note } from "@/lib/api"
 import { stripHtml } from "@/utils/noteUtils"
@@ -48,9 +48,11 @@ export function NoteCard({ note, onDelete, onPin, onArchive, showArchived }: Not
       {/* Cover Image if available */}
       {coverImage && (
         <div className="w-full h-48 overflow-hidden relative border-b border-border/20">
-          <img
+          <Image
             src={coverImage}
             alt="Note cover"
+            width={400}
+            height={192}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

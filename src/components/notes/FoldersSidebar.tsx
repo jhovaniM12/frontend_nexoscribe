@@ -1,7 +1,6 @@
 'use client'
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Folder, Plus, MoreVertical, Edit, Trash2, Archive, Tag as TagIcon } from "lucide-react"
@@ -21,7 +20,6 @@ interface FoldersSidebarProps {
 
 export function FoldersSidebar({
   folders,
-  notes,
   loading,
   selectedFolderId,
   onFolderClick,

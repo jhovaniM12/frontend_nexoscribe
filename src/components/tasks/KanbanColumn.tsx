@@ -11,8 +11,7 @@ import {
     Trash2,
     Edit3,
     GripVertical,
-    AlertCircle
-} from "lucide-react"
+    } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -91,9 +90,6 @@ export function KanbanColumn({
     const [editTitle, setEditTitle] = useState(column.title)
     const [showColorPicker, setShowColorPicker] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
-
-    const isOverLimit = column.wipLimit ? taskCount > column.wipLimit : false
-    const isAtLimit = column.wipLimit ? taskCount === column.wipLimit : false
 
     const handleTitleSubmit = () => {
         if (editTitle.trim()) {

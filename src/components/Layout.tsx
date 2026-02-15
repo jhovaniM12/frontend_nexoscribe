@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils"
 
 interface LayoutProps {
   children: React.ReactNode
+  /** Sin padding en main; para editor de whiteboard a pantalla completa */
+  fullWidth?: boolean
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, fullWidth }: LayoutProps) {
   // Sidebar colapsado por defecto
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
@@ -42,7 +44,10 @@ export function Layout({ children }: LayoutProps) {
       >
         <Header onMenuClick={() => setSidebarMobileOpen(true)} />
 
-        <main className="p-3 sm:p-4 lg:p-6 h-[calc(100vh-3.5rem)] min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin">
+        <main className={cn(
+          "h-[calc(100vh-3.5rem)] min-h-0 overflow-x-hidden",
+          fullWidth ? "p-0 overflow-y-hidden" : "p-3 sm:p-4 lg:p-6 overflow-y-auto scrollbar-thin"
+        )}>
           {children}
         </main>
       </div>

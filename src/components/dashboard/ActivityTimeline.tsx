@@ -1,13 +1,5 @@
 'use client'
 
-import {
-  FileText,
-  CheckSquare,
-  FolderKanban,
-  MessageSquare,
-  PenTool,
-  User,
-} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -45,26 +37,6 @@ function getActivityLabel(item: DashboardActivityItem): string {
       return 'actualizó su foto de perfil'
     default:
       return `acción en "${item.entityTitle}"`
-  }
-}
-
-function getActivityIcon(item: DashboardActivityItem) {
-  const iconClass = 'h-3.5 w-3.5 shrink-0 text-primary'
-  switch (item.type) {
-    case 'task_created':
-      return <CheckSquare className={iconClass} aria-hidden />
-    case 'project_created':
-      return <FolderKanban className={iconClass} aria-hidden />
-    case 'note_created':
-      return <FileText className={iconClass} aria-hidden />
-    case 'comment_added':
-      return <MessageSquare className={iconClass} aria-hidden />
-    case 'whiteboard_created':
-      return <PenTool className={iconClass} aria-hidden />
-    case 'profile_updated':
-      return <User className={iconClass} aria-hidden />
-    default:
-      return <FileText className={iconClass} aria-hidden />
   }
 }
 

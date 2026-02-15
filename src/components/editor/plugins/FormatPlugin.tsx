@@ -12,13 +12,9 @@ import {
     INSERT_ORDERED_LIST_COMMAND,
     INSERT_UNORDERED_LIST_COMMAND,
     REMOVE_LIST_COMMAND,
-    ListNode,
-    ListItemNode,
-    $isListNode,
 } from '@lexical/list';
 import { $setBlocksType } from '@lexical/selection';
-import { $createHeadingNode, $createQuoteNode, HeadingTagType, HeadingNode, QuoteNode } from '@lexical/rich-text';
-import { $getNearestNodeOfType } from '@lexical/utils';
+import { $createHeadingNode, $createQuoteNode, HeadingTagType } from '@lexical/rich-text';
 
 // Commands para headings y quotes
 export const FORMAT_HEADING_COMMAND: LexicalCommand<HeadingTagType> = createCommand('FORMAT_HEADING_COMMAND');

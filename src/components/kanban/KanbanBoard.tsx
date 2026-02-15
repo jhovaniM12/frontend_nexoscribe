@@ -63,7 +63,6 @@ const DEFAULT_SECTIONS_TO_CREATE = [
 
 export function KanbanBoard({
     tasks,
-    loading,
     onTaskMove,
     onEditTask,
     onDeleteTask,
@@ -73,7 +72,7 @@ export function KanbanBoard({
     const [columns, setColumns] = useState<Column[]>([])
     const [activeColumn, setActiveColumn] = useState<Column | null>(null)
     const [activeTask, setActiveTask] = useState<Task | null>(null)
-    const [columnsLoading, setColumnsLoading] = useState(false)
+    const [, setColumnsLoading] = useState(false)
 
     // Deduplicate tasks to verify integrity (Fix for SortableContext unique key error)
     const uniqueTasks = useMemo(() => {

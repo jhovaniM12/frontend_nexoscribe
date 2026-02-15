@@ -68,10 +68,16 @@ export default function BoardGallery() {
     setIsCreating(true)
     try {
       const { whiteboard } = await whiteboardApi.create(newTitle)
+      const boardId = whiteboard._id
+      if (!boardId) {
+        toast.error("Error al crear tablero: no se recibió ID")
+        return
+      }
       toast.success("Tablero creado")
-      router.push(`/board/${whiteboard._id}`)
+      router.push(`/board/${boardId}`)
     } catch {
       toast.error("Error al crear tablero")
+    } finally {
       setIsCreating(false)
     }
   }

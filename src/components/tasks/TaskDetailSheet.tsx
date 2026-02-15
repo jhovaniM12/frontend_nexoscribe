@@ -19,8 +19,6 @@ import {
   CheckSquare,
   Flag,
   FolderKanban,
-  Link as LinkIcon,
-  MoreHorizontal,
   User,
   X,
   MessageSquare,
@@ -29,13 +27,12 @@ import {
   AlertCircle,
   FileText,
   Loader2,
-  Download,
   Clock,
   Edit2,
   Tag,
   Plus
 } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { type Task, type Project, type Attachment, commentsApi, type Comment, api, organizationApi } from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
@@ -393,25 +390,6 @@ export function TaskDetailSheet({
         // Revertir si falla
         setTags(tags)
       })
-    }
-  }
-
-  // Helper for status badge
-  const getStatusColor = (s: string) => {
-    switch (s) {
-      case 'todo': return 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-      case 'in_progress': return 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-      case 'done': return 'bg-green-100 text-green-700 hover:bg-green-200'
-      default: return 'bg-gray-100 text-gray-700'
-    }
-  }
-
-  const getPriorityColor = (p: string) => {
-    switch (p) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200'
-      case 'medium': return 'text-orange-600 bg-orange-50 border-orange-200'
-      case 'low': return 'text-blue-600 bg-blue-50 border-blue-200'
-      default: return 'text-gray-600'
     }
   }
 
@@ -865,25 +843,5 @@ export function TaskDetailSheet({
         </div>
       </SheetContent>
     </Sheet>
-  )
-}
-
-function PlusIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
   )
 }

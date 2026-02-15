@@ -7,7 +7,6 @@ import { useMemo, useState } from "react"
 import { Task } from "@/lib/api"
 import { KanbanCard } from "./KanbanCard"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus, MoreHorizontal, Pencil, Trash } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -18,8 +17,6 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-
 export interface Column {
     id: string
     title: string
@@ -45,7 +42,6 @@ export function KanbanColumn({
     onAddTask,
     onEditTask,
     onDeleteTask,
-    onUpdateColumn,
     onDeleteColumn
 }: KanbanColumnProps) {
     const [isEditing, setIsEditing] = useState(false)
@@ -76,15 +72,6 @@ export function KanbanColumn({
     const style = {
         transition,
         transform: CSS.Transform.toString(transform),
-    }
-
-    const handleRename = () => {
-        if (!editTitle.trim()) {
-            setEditTitle(column.title)
-        } else {
-            onUpdateColumn?.(column.id, editTitle)
-        }
-        setIsEditing(false)
     }
 
     if (isDragging) {
@@ -118,7 +105,7 @@ export function KanbanColumn({
                             className="h-2 w-2 rounded-full"
                             style={{ backgroundColor: column.color || '#6b7280' }}
                         />
-                        {column.title}
+                        {isEditing ? editTitle : column.title}
                         <span className="text-muted-foreground/60 ml-1 font-normal normal-case tracking-normal">
                             {tasks.length}
                         </span>

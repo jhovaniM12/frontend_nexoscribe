@@ -39,7 +39,7 @@ import {
 import { $patchStyleText } from '@lexical/selection';
 import { INSERT_IMAGE_COMMAND } from './plugins/ImagesPlugin';
 import { INSERT_CODE_BLOCK_COMMAND, CODE_LANGUAGES } from './plugins/CodeBlockPlugin';
-import { FORMAT_HEADING_COMMAND, FORMAT_QUOTE_COMMAND, FORMAT_PARAGRAPH_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from './plugins/FormatPlugin';
+import { FORMAT_HEADING_COMMAND, FORMAT_QUOTE_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from './plugins/FormatPlugin';
 import { TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { uploadApi } from '@/lib/api';
 import { toast } from 'sonner';

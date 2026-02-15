@@ -1,7 +1,7 @@
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, createCommand, LexicalCommand } from 'lexical';
 import { useEffect } from 'react';
-import { $createCodeNode, CodeNode, $isCodeNode, getCodeLanguages, getDefaultCodeLanguage } from '@lexical/code';
+import { $createCodeNode, CodeNode, getCodeLanguages, getDefaultCodeLanguage, registerCodeHighlighting } from '@lexical/code';
 import { $setBlocksType } from '@lexical/selection';
 
 export const INSERT_CODE_BLOCK_COMMAND: LexicalCommand<string | undefined> = createCommand('INSERT_CODE_BLOCK_COMMAND');
@@ -50,6 +50,10 @@ export default function CodeBlockPlugin(): null {
             },
             COMMAND_PRIORITY_LOW,
         );
+    }, [editor]);
+
+    useEffect(() => {
+        return registerCodeHighlighting(editor);
     }, [editor]);
 
     return null;

@@ -2,7 +2,6 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import {
     $getSelection,
     $isRangeSelection,
-    COMMAND_PRIORITY_LOW,
     createCommand,
     LexicalCommand,
 } from 'lexical';
@@ -11,10 +10,9 @@ import {
     $isLinkNode,
     LinkNode,
     TOGGLE_LINK_COMMAND,
-    $createLinkNode,
 } from '@lexical/link';
 import { $isAtNodeEnd } from '@lexical/selection';
-import { $findMatchingParent, mergeRegister } from '@lexical/utils';
+import { mergeRegister } from '@lexical/utils';
 
 // Command para abrir el diálogo de insertar link
 export const OPEN_LINK_DIALOG_COMMAND: LexicalCommand<void> = createCommand('OPEN_LINK_DIALOG_COMMAND');

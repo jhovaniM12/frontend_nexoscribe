@@ -7,17 +7,13 @@ import {
   FileText,
   CheckSquare,
   Settings,
-  ChevronLeft,
   PenTool,
   FolderKanban,
   ChevronsUpDown,
-  Building,
   Plus,
   ShieldAlert,
   Loader2,
-  Sparkles,
-  Search,
-  Bell
+  Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -29,7 +25,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"

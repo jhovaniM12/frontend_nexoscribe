@@ -9,6 +9,7 @@ import {
   Clock,
   MessageSquare
 } from "lucide-react"
+import Image from "next/image"
 import { type Task } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -83,10 +84,6 @@ export function TaskCard({
   task,
   onEdit,
   onDragStart,
-  onStatusToggle,
-  onQuickAssign,
-  availableMembers = [],
-  owner
 }: TaskCardProps) {
 
   const priority = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG.default
@@ -156,7 +153,7 @@ export function TaskCard({
                 title={task.assignedTo.name}
               >
                 {task.assignedTo.avatar ? (
-                  <img src={task.assignedTo.avatar} alt={task.assignedTo.name} className="h-full w-full object-cover" />
+                  <Image src={task.assignedTo.avatar} alt={task.assignedTo.name} width={32} height={32} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-[10px] font-bold text-muted-foreground">
                     {(task.assignedTo.name || 'U').slice(0, 2).toUpperCase()}

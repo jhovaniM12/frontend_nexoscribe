@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { type Task } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { Plus, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit, Trash2, MoreVertical, MoreHorizontal, CheckCircle2, MessageSquare, Paperclip } from "lucide-react"
+import { Loader2, ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -17,22 +17,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format, isToday, isTomorrow, isPast, startOfDay } from "date-fns"
 import { es } from "date-fns/locale"
-import { User as UserIcon, Calendar, Clock, Tag as TagIcon, AlertCircle, FolderKanban } from "lucide-react"
+import { Tag as TagIcon } from "lucide-react"
 
 interface ListViewProps {
   tasks: Task[]
@@ -84,9 +76,6 @@ export function ListView({
   onDeleteTask,
   onNewTask,
   onStatusToggle,
-  onQuickAssign,
-  availableMembers,
-  owner
 }: ListViewProps) {
   const [sortField, setSortField] = useState<SortField>('dueDate')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
@@ -156,15 +145,6 @@ export function ListView({
     }
   }
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'todo': return { label: 'Por hacer', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' }
-      case 'in_progress': return { label: 'En progreso', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' }
-      case 'done': return { label: 'Completado', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' }
-      default: return { label: status, color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' }
-    }
-  }
-
   const getDateStatus = (dueDate: string | undefined, status: string) => {
     if (!dueDate || status === 'done') return null
 
@@ -182,75 +162,6 @@ export function ListView({
     }
     return null
   }
-
-  const formatTime = (minutes: number) => {
-    const h = Math.floor(minutes / 60)
-    const m = minutes % 60
-    if (h > 0 && m > 0) return `${h}h ${m}m`
-    if (h > 0) return `${h}h`
-    return `${m}m`
-  }
-
-  // Render member selection dropdown for assigning
-  const renderAssignDropdown = (task: Task, trigger: React.ReactNode) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {trigger}
-      </DropdownMenuTrigger>
-      {onQuickAssign && (
-        <DropdownMenuContent align="start" className="w-52">
-          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Asignar a</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onQuickAssign(task._id || task.id || '', null)} className="gap-2">
-            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-              <UserIcon className="h-3 w-3" />
-            </div>
-            Sin asignar
-          </DropdownMenuItem>
-          {owner && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onQuickAssign(task._id || task.id || '', owner._id)} className="gap-2">
-                <Avatar className="h-6 w-6">
-                  {owner.avatar && owner.avatar.trim() !== "" ? (
-                    <AvatarImage src={owner.avatar} alt={owner.name} />
-                  ) : null}
-                  <AvatarFallback className="text-[9px] bg-primary/10">
-                    {owner.name?.slice(0, 2).toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="truncate">{owner.name}</span>
-                <Badge variant="secondary" className="ml-auto text-[9px] px-1 h-4">Owner</Badge>
-              </DropdownMenuItem>
-            </>
-          )}
-          {availableMembers && availableMembers.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              {availableMembers.map((member) => {
-                const userData = typeof member.userId === 'object' ? member.userId : null
-                if (!userData) return null
-                if (owner && owner._id === userData._id) return null
-                return (
-                  <DropdownMenuItem key={userData._id} onClick={() => onQuickAssign(task._id || task.id || '', userData._id)} className="gap-2">
-                    <Avatar className="h-6 w-6">
-                      {userData.avatar && userData.avatar.trim() !== "" ? (
-                        <AvatarImage src={userData.avatar} alt={userData.name} />
-                      ) : null}
-                      <AvatarFallback className="text-[9px] bg-muted">
-                        {userData.name?.slice(0, 2).toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="truncate">{userData.name}</span>
-                  </DropdownMenuItem>
-                )
-              })}
-            </>
-          )}
-        </DropdownMenuContent>
-      )}
-    </DropdownMenu>
-  )
 
   if (loading) {
     return (

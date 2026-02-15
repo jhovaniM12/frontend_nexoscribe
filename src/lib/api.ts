@@ -780,8 +780,18 @@ export const whiteboardApi = {
     };
   },
 
-  create: (title: string) =>
-    api.post<{ message: string; whiteboard: Whiteboard }>('/api/whiteboard', { title }),
+  create: async (title: string) => {
+    const response = await api.post<{ message: string; whiteboard: Whiteboard }>('/api/whiteboard', { title });
+    const w = response.whiteboard;
+    return {
+      ...response,
+      whiteboard: {
+        ...w,
+        _id: w._id || (w as Whiteboard & { id?: string }).id || '',
+        createdBy: w.createdBy ? { ...w.createdBy, _id: w.createdBy._id || (w.createdBy as { _id?: string; id?: string }).id || '' } : w.createdBy
+      }
+    };
+  },
 
   getById: (id: string) =>
     api.get<{ whiteboard: Whiteboard }>(`/api/whiteboard/${id}`),

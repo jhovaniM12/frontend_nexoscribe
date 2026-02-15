@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Image, CheckSquare, PenTool } from "lucide-react"
+import { Image as ImageIcon, CheckSquare, PenTool } from "lucide-react"
 import { notesApi } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -87,7 +87,7 @@ export function QuickNoteInput({ onNoteCreated, selectedFolderId }: QuickNoteInp
                         <div className="flex items-center gap-2 sm:gap-4 opacity-60">
                             <CheckSquare className="h-5 w-5 hover:text-foreground transition-colors" />
                             <PenTool className="h-5 w-5 hover:text-foreground transition-colors" />
-                            <Image className="h-5 w-5 hover:text-foreground transition-colors" />
+                            <ImageIcon className="h-5 w-5 hover:text-foreground transition-colors" aria-hidden />
                         </div>
                     </div>
                 </Card>
@@ -124,7 +124,7 @@ export function QuickNoteInput({ onNoteCreated, selectedFolderId }: QuickNoteInp
                                     <div className="flex items-center justify-between px-2 py-2 bg-muted/10 border-t border-border/30">
                                         <div className="flex items-center gap-1 px-2">
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" disabled>
-                                                <Image className="h-4 w-4" />
+                                                <ImageIcon className="h-4 w-4" aria-hidden />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" disabled>
                                                 <CheckSquare className="h-4 w-4" />
