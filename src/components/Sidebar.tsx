@@ -149,9 +149,9 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
       <NavLink
         href={item.href}
         className={cn(
-          "flex items-center gap-2.5 px-2 py-2 rounded-md transition-all duration-200 group relative",
+          "flex items-center gap-2.5 px-2 py-2.5 min-h-[44px] rounded-md transition-all duration-200 group relative",
           "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
-          "active:bg-sidebar-accent active:text-sidebar-accent-foreground",
+          "active:bg-sidebar-accent active:text-sidebar-accent-foreground touch-manipulation",
           isCollapsed && !isMobile ? "justify-center px-2" : ""
         )}
         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-none"
@@ -191,7 +191,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose
         className={cn(
           "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out z-50 flex flex-col shadow-subtle",
           collapsed ? "lg:w-[60px]" : "lg:w-64",
-          mobileOpen ? "translate-x-0 w-64 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+          mobileOpen ? "translate-x-0 w-[min(280px,85vw)] shadow-2xl" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Header: Org Switcher */}

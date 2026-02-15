@@ -245,7 +245,7 @@ function NotesContent() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] px-2 sm:px-0">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-8rem)] lg:h-[calc(100vh-8rem)] px-3 sm:px-0 w-full min-w-0 overflow-x-hidden">
           {/* Sidebar de Carpetas */}
           <FoldersSidebar
             folders={folders}

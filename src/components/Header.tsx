@@ -44,8 +44,8 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
   }
 
   return (
-    <header className="h-14 shrink-0 border-b border-border/50 bg-background/95 backdrop-blur-md sticky top-0 z-30 flex items-center shadow-sm shadow-black/[0.02] dark:shadow-black/20">
-      <div className="h-full flex items-center justify-between px-4 sm:px-6 gap-4 lg:gap-6 w-full">
+    <header className="h-14 shrink-0 border-b border-border/50 bg-background/95 backdrop-blur-md sticky top-0 z-30 flex items-center shadow-sm shadow-black/[0.02] dark:shadow-black/20 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+      <div className="h-full flex items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4 lg:gap-6 w-full min-w-0">
         <div className="flex items-center gap-3 min-w-0">
           {onMenuClick && (
             <Button
@@ -62,7 +62,7 @@ export function Header({ onMenuClick }: HeaderProps = {}) {
           <Breadcrumbs />
         </div>
 
-        <div className="flex-1 max-w-xl flex justify-center px-2 sm:px-4">
+        <div className="flex-1 min-w-0 max-w-xl flex justify-center px-1 sm:px-4">
           <CommandPalette />
         </div>
 

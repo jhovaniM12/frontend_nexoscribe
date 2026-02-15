@@ -269,11 +269,11 @@ export default function NoteDetail() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto px-2 sm:px-0 w-full min-w-0 overflow-x-hidden">
           {/* Header */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/notes">
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+            <Button variant="ghost" size="icon" asChild className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 touch-manipulation">
+              <Link href="/notes" aria-label="Volver a notas">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
@@ -282,13 +282,13 @@ export default function NoteDetail() {
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="text-xl sm:text-2xl font-bold"
+                  className="text-lg sm:text-2xl font-bold"
                 />
               ) : (
-                <h1 className="text-2xl sm:text-3xl font-bold truncate">{title}</h1>
+                <h1 className="text-xl sm:text-3xl font-bold truncate">{title}</h1>
               )}
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 touch-manipulation">
               {isEditing ? (
                 <>
                   <Button
@@ -319,29 +319,27 @@ export default function NoteDetail() {
                 </>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setShareDialogOpen(true)} className="gap-2">
-                    <Share2 className="h-4 w-4" />
-                    Compartir
+                  <Button variant="outline" onClick={() => setShareDialogOpen(true)} className="gap-1.5 sm:gap-2 h-9 min-w-[44px] sm:min-w-0 px-2 sm:px-3" aria-label="Compartir">
+                    <Share2 className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Compartir</span>
                   </Button>
-                  <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                    <Edit className="h-4 w-4" />
-                    Editar
+                  <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-1.5 sm:gap-2 h-9 min-w-[44px] sm:min-w-0 px-2 sm:px-3" aria-label="Editar">
+                    <Edit className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">Editar</span>
                   </Button>
                   <Button
                     variant="destructive"
                     onClick={handleDelete}
-                    className="gap-2"
+                    className="gap-1.5 sm:gap-2 h-9 min-w-[44px] sm:min-w-0 px-2 sm:px-3"
                     disabled={deleting}
+                    aria-label="Eliminar"
                   >
                     {deleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Eliminando...
-                      </>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                     ) : (
                       <>
-                        <Trash2 className="h-4 w-4" />
-                        Eliminar
+                        <Trash2 className="h-4 w-4 shrink-0" />
+                        <span className="hidden sm:inline">Eliminar</span>
                       </>
                     )}
                   </Button>
@@ -352,28 +350,26 @@ export default function NoteDetail() {
 
           {/* Note Content */}
           <Card className="shadow-card">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-3 flex-wrap">
-                  {note.tags && note.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {note.tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="gap-1">
-                          <TagIcon className="h-3 w-3" />
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>Creada {new Date(note.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      <span>Actualizada {new Date(note.updatedAt).toLocaleDateString()}</span>
-                    </div>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                {note.tags && note.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {note.tags.map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="gap-1">
+                        <TagIcon className="h-3 w-3" />
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 shrink-0" />
+                    <span>Creada {new Date(note.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    <span>Actualizada {new Date(note.updatedAt).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
@@ -439,7 +435,7 @@ export default function NoteDetail() {
                   {/* Renderizar contenido HTML */}
                   <div
                     ref={contentRef}
-                    className="prose prose-sm max-w-none"
+                    className="prose prose-sm max-w-none overflow-x-hidden"
                     dangerouslySetInnerHTML={{ __html: content }}
                   />
 

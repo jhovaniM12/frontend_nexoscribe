@@ -152,7 +152,7 @@ export default function OrganizationSettingsPage() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-6 max-w-4xl mx-auto px-2 sm:px-0 w-full overflow-x-hidden">
           <div>
             <h1 className="text-3xl font-bold">Configuración de Organización</h1>
             <p className="text-muted-foreground mt-1">
@@ -223,8 +223,8 @@ export default function OrganizationSettingsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
-                <Table>
+              <div className="rounded-md border overflow-x-auto scrollbar-thin">
+                <Table className="min-w-[520px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Usuario</TableHead>
@@ -280,8 +280,8 @@ export default function OrganizationSettingsPage() {
                 <CardTitle>Invitaciones Pendientes ({pendingInvitations.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border">
-                  <Table>
+                <div className="rounded-md border overflow-x-auto scrollbar-thin">
+                  <Table className="min-w-[400px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Email</TableHead>

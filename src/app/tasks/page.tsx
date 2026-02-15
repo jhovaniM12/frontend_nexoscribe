@@ -350,20 +350,20 @@ function TasksPageContent() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="flex flex-col h-full overflow-hidden">
-          <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden w-full">
+          <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden min-h-0">
             {/* Nav & Toolbar - Linear Style */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 px-3 sm:px-6 py-3 border-b border-border/50 bg-background/50 backdrop-blur-sm shrink-0">
 
-              <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 flex-wrap">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 sm:gap-6 lg:gap-8 min-w-0 overflow-x-auto scrollbar-hide">
+                <div className="flex items-center gap-3 shrink-0">
                   <div className="h-4 w-4 rounded-sm bg-primary/20 border border-primary/30 flex items-center justify-center">
                     <LayoutGrid className="h-2.5 w-2.5 text-primary" />
                   </div>
                   <h1 className="text-sm font-semibold tracking-tight">Tareas</h1>
                 </div>
 
-                <TabsList className="bg-transparent h-auto p-0 gap-6 border-none">
+                <TabsList className="bg-transparent h-auto p-0 gap-4 sm:gap-6 border-none shrink-0">
                   <TabsTrigger
                     value="kanban"
                     className="h-8 rounded-none border-b-2 border-transparent px-1 pb-2 pt-0 text-xs font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground bg-transparent shadow-none"
@@ -508,9 +508,9 @@ function TasksPageContent() {
             {/* Calendar Content - Linear Style */}
             <TabsContent value="calendar" className="flex-1 mt-0 border-0 p-0 flex flex-col overflow-hidden bg-background">
               {/* Calendar Nav */}
-              <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border/30">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-sm font-semibold capitalize">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-3 sm:px-6 py-4 shrink-0 border-b border-border/30">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                  <h2 className="text-sm font-semibold capitalize truncate">
                     {format(currentDate, 'MMMM yyyy', { locale: es })}
                   </h2>
                   <div className="flex items-center border rounded-md overflow-hidden h-7">

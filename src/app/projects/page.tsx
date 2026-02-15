@@ -120,7 +120,7 @@ export default function ProjectsPage() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="max-w-[1200px] mx-auto px-3 sm:px-6 py-4 sm:py-8 w-full overflow-x-hidden">
           {/* Header - Linear Style */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
             <div className="space-y-1">

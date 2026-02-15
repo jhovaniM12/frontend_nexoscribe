@@ -17,12 +17,13 @@ export function Layout({ children, fullWidth }: LayoutProps) {
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
 
   return (
-    <div className="min-h-screen w-full bg-background overflow-x-hidden">
+    <div className="min-h-screen min-h-[100dvh] w-full bg-background overflow-x-hidden">
       {/* Overlay para móvil */}
       {sidebarMobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarMobileOpen(false)}
+          aria-hidden
         />
       )}
 
@@ -45,8 +46,8 @@ export function Layout({ children, fullWidth }: LayoutProps) {
         <Header onMenuClick={() => setSidebarMobileOpen(true)} />
 
         <main className={cn(
-          "h-[calc(100vh-3.5rem)] min-h-0 overflow-x-hidden",
-          fullWidth ? "p-0 overflow-y-hidden" : "p-3 sm:p-4 lg:p-6 overflow-y-auto scrollbar-thin"
+          "h-[calc(100vh-3.5rem)] h-[calc(100dvh-3.5rem)] min-h-0 overflow-x-hidden",
+          fullWidth ? "p-0 overflow-y-hidden" : "px-3 py-4 sm:p-4 lg:p-6 overflow-y-auto scrollbar-thin"
         )}>
           {children}
         </main>

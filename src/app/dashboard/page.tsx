@@ -286,7 +286,7 @@ export default function Dashboard() {
   return (
     <AuthGuard>
       <Layout>
-        <div className="max-w-[1600px] mx-auto space-y-8 animate-fade-in">
+        <div className="max-w-[1600px] mx-auto space-y-6 sm:space-y-8 animate-fade-in w-full overflow-x-hidden">
 
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2 border-b border-border/10">
@@ -382,7 +382,7 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <Button size="sm" asChild className="h-9 px-4 font-medium">
               <Link href="/projects">
                 <Plus className="mr-2 h-4 w-4" />
@@ -461,11 +461,11 @@ export default function Dashboard() {
 
             {/* Notas Recientes */}
             <div className="lg:col-span-4 space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+              <div className="flex items-center justify-between gap-2 px-1 min-w-0">
+                <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest truncate min-w-0">
                   Notas Recientes
                 </h3>
-                <Link href="/notes" className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors">
+                <Link href="/notes" className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors shrink-0 whitespace-nowrap">
                   Ver todas
                 </Link>
               </div>
@@ -508,18 +508,60 @@ export default function Dashboard() {
 
           <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
 
-            {/* Proyectos Activos - Tabla */}
+            {/* Proyectos Activos - Cards en móvil, Tabla en desktop */}
             <div className="lg:col-span-8 space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Proyectos Activos</h3>
-                <Link href="/projects" className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors">
+              <div className="flex items-center justify-between gap-2 px-1 min-w-0">
+                <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest truncate min-w-0">Proyectos Activos</h3>
+                <Link href="/projects" className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors shrink-0 whitespace-nowrap">
                   Ver todos
                 </Link>
               </div>
 
               {data?.recentProjects && data.recentProjects.length > 0 ? (
-                <div className="rounded-xl border border-border/30 bg-background overflow-x-auto overflow-y-hidden">
-                  <Table className="min-w-[500px]">
+                <>
+                  {/* Vista móvil: cards apiladas */}
+                  <div className="md:hidden space-y-3">
+                    {data.recentProjects.map((project: DashboardRecentProject) => (
+                      <button
+                        key={project.id}
+                        type="button"
+                        onClick={() => router.push(`/projects?id=${project.id}`)}
+                        className="w-full text-left rounded-xl border border-border/30 bg-background p-4 hover:bg-muted/10 active:bg-muted/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div
+                            className="h-9 w-9 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
+                            style={{ backgroundColor: hashToColor(project.name) }}
+                          >
+                            {project.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-foreground truncate flex-1 min-w-0">{project.name}</span>
+                          <Badge
+                            variant="outline"
+                            className={cn("rounded-full text-[10px] shrink-0", PROJECT_STATUS_STYLES[project.status] ?? PROJECT_STATUS_STYLES.active)}
+                          >
+                            {PROJECT_STATUS_LABELS[project.status] ?? "En Curso"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={project.progress} className="h-2 flex-1 min-w-0" />
+                          <span className="text-xs font-medium text-muted-foreground shrink-0 w-10">{project.progress}%</span>
+                        </div>
+                        {project.lead && (
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/20">
+                            <Avatar className="h-5 w-5">
+                              {project.lead.avatarUrl && <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />}
+                              <AvatarFallback className="text-[9px]">{project.lead.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-muted-foreground truncate">{project.lead.name}</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Vista desktop: tabla */}
+                  <div className="hidden md:block rounded-xl border border-border/30 bg-background overflow-x-auto overflow-y-hidden scrollbar-thin">
+                    <Table className="min-w-[500px]">
                     <TableHeader>
                       <TableRow className="border-border/20 hover:bg-transparent">
                         <TableHead className="font-semibold">Nombre</TableHead>
@@ -576,10 +618,11 @@ export default function Dashboard() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
-                </div>
+                    </Table>
+                  </div>
+                </>
               ) : (
-                <div className="p-12 rounded-xl border border-dashed border-border/40 bg-muted/5 flex flex-col items-center justify-center text-center">
+                <div className="p-8 sm:p-12 rounded-xl border border-dashed border-border/40 bg-muted/5 flex flex-col items-center justify-center text-center">
                   <FolderKanban className="h-10 w-10 text-muted-foreground/25 mb-4" />
                   <p className="text-sm font-semibold text-foreground">Crea tu primer proyecto en 30 segundos</p>
                   <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">Organiza tareas y colabora con tu equipo desde el día uno.</p>
@@ -597,9 +640,9 @@ export default function Dashboard() {
             <div className="lg:col-span-4 space-y-6">
               {/* Mi Agenda (Para Hoy) */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between px-1">
-                  <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Mi Agenda (Para Hoy)</h3>
-                  <Link href="/tasks" className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors">
+                <div className="flex items-center justify-between gap-2 px-1 min-w-0">
+                  <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest truncate min-w-0">Mi Agenda (Para Hoy)</h3>
+                  <Link href="/tasks" className="text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors shrink-0 whitespace-nowrap">
                     Ver todos
                   </Link>
                 </div>
@@ -634,13 +677,13 @@ export default function Dashboard() {
                         ))}
                     </div>
                   ) : (
-                    <div className="p-10 flex flex-col items-center justify-center text-center">
-                      <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                        <CheckSquare className="h-6 w-6 text-primary/50" />
+                    <div className="p-6 sm:p-10 flex flex-col items-center justify-center text-center">
+                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/5 flex items-center justify-center mb-3 sm:mb-4">
+                        <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 text-primary/50" />
                       </div>
                       <p className="text-sm font-bold text-foreground">¡Todo al día!</p>
-                      <p className="text-xs text-muted-foreground mt-1 px-4">No tienes tareas para hoy. Disfruta tu día.</p>
-                      <Button variant="outline" size="sm" asChild className="mt-4 text-xs font-medium">
+                      <p className="text-xs text-muted-foreground mt-1 px-2 sm:px-4">No tienes tareas para hoy. Disfruta tu día.</p>
+                      <Button variant="outline" size="sm" asChild className="mt-3 sm:mt-4 text-xs font-medium w-full sm:w-auto max-w-[200px]">
                         <Link href="/tasks">Ver todas las tareas</Link>
                       </Button>
                     </div>
